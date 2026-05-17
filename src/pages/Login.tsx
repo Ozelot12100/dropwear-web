@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Package } from 'lucide-react';
+import Logo from '../assets/logo.png';
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -33,7 +33,7 @@ export default function Login() {
         <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex justify-center text-indigo-600">
-                    <Package size={56} />
+                    <img src={Logo} alt="DropWear Logo" className="h-24 w-auto drop-shadow-md rounded-md" style={{ filter: 'drop-shadow(0 4px 3px rgb(0 0 0 / 0.17)) invert(1)' }} />
                 </div>
                 <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
                     DropWear
