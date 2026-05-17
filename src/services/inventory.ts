@@ -1,10 +1,33 @@
 import { supabase } from '../lib/supabase';
-import type { ItemStatus, LogAction, InventoryItemWithRelations } from '../types';
+import type { Database, ItemStatus, InventoryItemWithRelations } from '../types';
+
+type ChangeItemStatusArgs = Database['public']['Functions']['change_item_status']['Args'];
+type AddInventoryItemArgs = Database['public']['Functions']['add_inventory_item']['Args'];
+
+/**
+ * Servicio de inventario. Las operaciones de escritura usan funciones SQL
+ * (RPC) que ejecutan UPDATE + log + validación en una sola transacción con
+ * bloqueo optimista para evitar pérdidas de actualización en operación
+ * concurrente.
+ *
+ * Requiere la migración: supabase/migrations/20260516120000_optimistic_locking.sql
+ */
+
+interface ChangeStatusResult {
+    item_id: number;
+    previous_status: ItemStatus;
+    new_status: ItemStatus;
+    log_id: number;
+}
+
+interface AddItemResult {
+    item_id: number;
+    log_id: number;
+}
 
 export const inventoryService = {
     /**
-     * Obtiene todos los ítems del inventario con sus relaciones completas
-     * (Producto, Marca y Categoría)
+     * Listado completo del inventario con relaciones (producto → marca → categoría).
      */
     async getAllItems(): Promise<InventoryItemWithRelations[]> {
         const { data, error } = await supabase
@@ -15,7 +38,10 @@ export const inventoryService = {
                 color,
                 status,
                 price_sold,
+                updated_by,
+                updated_at,
                 created_at,
+                product_id,
                 products (
                     id,
                     name,
@@ -27,124 +53,93 @@ export const inventoryService = {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return data as any;
+        return (data ?? []) as unknown as InventoryItemWithRelations[];
     },
 
     /**
-     * Ejecuta la transacción de cambio de estado de un ítem e inserta el log obligatorio.
+     * Obtiene un único ítem (útil para refresco granular post-realtime).
      */
-    async updateItemStatus({
-        itemId,
-        newStatus,
-        priceSold,
-        userId,
-        notes,
-    }: {
+    async getItemById(id: number): Promise<InventoryItemWithRelations | null> {
+        const { data, error } = await supabase
+            .from('inventory_items')
+            .select(`
+                id,
+                size,
+                color,
+                status,
+                price_sold,
+                updated_by,
+                updated_at,
+                created_at,
+                product_id,
+                products (
+                    id,
+                    name,
+                    base_price,
+                    brands ( name ),
+                    categories ( name )
+                )
+            `)
+            .eq('id', id)
+            .maybeSingle();
+
+        if (error) throw error;
+        return (data as unknown as InventoryItemWithRelations) ?? null;
+    },
+
+    /**
+     * Cambio de estado ATÓMICO con bloqueo optimista.
+     *
+     * @throws Error('STALE_STATE:...') si otro usuario modificó la prenda primero.
+     * @throws Error('INVALID_PRICE:...') si se vende sin precio.
+     * @throws Error('ITEM_NOT_FOUND:...') si la prenda fue eliminada.
+     */
+    async updateItemStatus(args: {
         itemId: number;
+        expectedPreviousStatus: ItemStatus;
         newStatus: ItemStatus;
         priceSold: number | null;
-        userId: string;
         notes?: string;
-    }) {
-        // 1. Obtener el estado previo para el log
-        const { data: currentItem, error: fetchError } = await supabase
-            .from('inventory_items')
-            .select('status')
-            .eq('id', itemId)
-            .single();
+    }): Promise<ChangeStatusResult> {
+        const rpcArgs: ChangeItemStatusArgs = {
+            p_item_id: args.itemId,
+            p_expected_previous_status: args.expectedPreviousStatus,
+            p_new_status: args.newStatus,
+            p_price_sold: args.priceSold,
+            p_notes: args.notes ?? null,
+        };
+        const { data, error } = await supabase.rpc('change_item_status', rpcArgs);
 
-        if (fetchError) throw fetchError;
-
-        // 2. Actualizar el estado del ítem
-        const { error: updateError } = await supabase
-            .from('inventory_items')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .update({
-                status: newStatus,
-                price_sold: newStatus === 'vendido' ? priceSold : null,
-                updated_by: userId,
-                updated_at: new Date().toISOString(),
-            } as never)
-            .eq('id', itemId);
-
-        if (updateError) throw updateError;
-
-        // 3. Registrar de forma inmutable el evento transaccional
-        let actionType: LogAction = 'actualizacion_estado';
-        if (newStatus === 'vendido') actionType = 'venta';
-        else if (newStatus === 'apartado') actionType = 'apartado';
-        else if (newStatus === 'devuelto') actionType = 'devolucion';
-
-        const { error: logError } = await supabase
-            .from('inventory_logs')
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .insert({
-                item_id: itemId,
-                partner_id: userId,
-                action: actionType,
-                previous_status: (currentItem as { status: ItemStatus }).status,
-                new_status: newStatus,
-                notes: notes || null,
-            } as never);
-
-        if (logError) {
-            console.error('Error al insertar el log:', logError);
-            throw new Error("Ítem actualizado, pero falló el registro en la bitácora.");
+        if (error) {
+            // La función SQL lanza `STALE_STATE: ...`, `INVALID_PRICE: ...`, etc.
+            // Re-lanzamos con el mismo prefijo para que el parser de errores lo capture.
+            throw new Error(error.message);
         }
 
-        return true;
+        // Postgres devuelve `RETURNS TABLE` como arreglo; tomamos la primera fila.
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row) throw new Error('No se recibió respuesta del servidor.');
+        return row as ChangeStatusResult;
     },
 
     /**
-     * Da de alta un artículo físico nuevo en el inventario.
-     * Por regla de negocio: status por defecto es 'disponible'.
-     * Siempre inserta el log de auditoría con action = 'creacion'.
+     * Alta de prenda física + log de creación, atómico.
      */
-    async addItem({
-        productId,
-        size,
-        color,
-        userId,
-    }: {
+    async addItem(args: {
         productId: number;
         size: string;
         color: string;
-        userId: string;
-    }) {
-        // 1. Insertar el ítem físico (status 'disponible' por default del esquema)
-        const { data: newItem, error: insertError } = await supabase
-            .from('inventory_items')
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .insert({
-                product_id: productId,
-                size: size.trim().toUpperCase(),
-                color: color.trim().toLowerCase(),
-                updated_by: userId,
-            } as never)
-            .select('id')
-            .single();
+    }): Promise<AddItemResult> {
+        const rpcArgs: AddInventoryItemArgs = {
+            p_product_id: args.productId,
+            p_size: args.size,
+            p_color: args.color,
+        };
+        const { data, error } = await supabase.rpc('add_inventory_item', rpcArgs);
 
-        if (insertError) throw insertError;
-
-        // 2. Registrar el evento de creación en la bitácora (inmutable)
-        const { error: logError } = await supabase
-            .from('inventory_logs')
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .insert({
-                item_id: (newItem as { id: number }).id,
-                partner_id: userId,
-                action: 'creacion' as LogAction,
-                previous_status: null,
-                new_status: 'disponible' as ItemStatus,
-                notes: null,
-            } as never);
-
-        if (logError) {
-            console.error('Error al registrar log de creación:', logError);
-            throw new Error('Prenda agregada, pero falló el registro en la bitácora.');
-        }
-
-        return newItem;
+        if (error) throw new Error(error.message);
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row) throw new Error('No se recibió respuesta del servidor.');
+        return row as AddItemResult;
     },
 };

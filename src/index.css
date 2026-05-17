@@ -92,4 +92,28 @@
   html {
     @apply font-sans;
   }
+
+  /* Oculta scrollbar en filas horizontales (pills, tabs) */
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe-area para bottom nav en iOS */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@layer utilities {
+  /* Resalta brevemente un ítem que acaba de cambiar por otra sesión */
+  @keyframes pulseOnce {
+    0%   { background-color: rgb(254 243 199 / 0.7); transform: translateZ(0); }
+    100% { background-color: transparent; }
+  }
+  .animate-pulse-once {
+    animation: pulseOnce 1.5s ease-out;
+  }
 }
