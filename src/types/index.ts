@@ -12,3 +12,19 @@ export type InventoryItem = Database['public']['Tables']['inventory_items']['Row
 export type Product = Database['public']['Tables']['products']['Row'];
 export type Category = Database['public']['Tables']['categories']['Row'];
 export type Brand = Database['public']['Tables']['brands']['Row'];
+
+/**
+ * Shape real que devuelve inventoryService.getAllItems().
+ * Incluye las relaciones anidadas resueltas por Supabase (products → brands, categories).
+ * Usar este tipo en lugar de `any` en Dashboard y TransactionModal.
+ */
+export interface InventoryItemWithRelations extends InventoryItem {
+    products: {
+        id: number;
+        name: string;
+        base_price: number;
+        brands: { name: string } | null;
+        categories: { name: string } | null;
+    } | null;
+}
+

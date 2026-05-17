@@ -133,10 +133,11 @@ export default function LogsPage() {
 
                                             {/* Precio de venta (solo roles financieros) */}
                                             {canSeeFinancial && (
-                                                <TableCell className="text-right font-medium text-green-700">
-                                                    {log.action === 'venta' && log.new_status === 'vendido'
-                                                        ? '—'
-                                                        : '—'}
+                                                <TableCell className="text-right font-medium">
+                                                    {log.inventory_items?.price_sold != null
+                                                        ? <span className="text-green-700">${log.inventory_items.price_sold.toFixed(2)}</span>
+                                                        : <span className="text-gray-300">—</span>
+                                                    }
                                                 </TableCell>
                                             )}
 

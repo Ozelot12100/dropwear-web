@@ -14,6 +14,7 @@ export interface LogWithRelations {
         id: number;
         size: string;
         color: string;
+        price_sold: number | null; // ← campo financiero del ítem (solo visible para roles autorizados)
         products: {
             name: string;
             brands: { name: string } | null;
@@ -27,7 +28,7 @@ export interface LogWithRelations {
 export const logsService = {
     /**
      * Obtiene el historial completo de operaciones con todas sus relaciones.
-     * JOIN: inventory_logs → inventory_items → products → brands
+     * JOIN: inventory_logs → inventory_items (incl. price_sold) → products → brands
      *       inventory_logs → user_profiles (via partner_id)
      */
     async getLogs(): Promise<LogWithRelations[]> {
@@ -45,12 +46,13 @@ export const logsService = {
                     id,
                     size,
                     color,
+                    price_sold,
                     products (
                         name,
                         brands ( name )
                     )
                 ),
-                user_profiles!inventory_logs_partner_id_fkey (
+                user_profiles (
                     full_name
                 )
             `)

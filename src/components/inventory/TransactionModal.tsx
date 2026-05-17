@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventory';
 import { useAuth } from '../../hooks';
-import type { ItemStatus } from '../../types';
+import type { ItemStatus, InventoryItemWithRelations } from '../../types';
 import {
     Dialog,
     DialogContent,
@@ -17,7 +17,7 @@ import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 
 interface TransactionModalProps {
-    item: any | null;
+    item: InventoryItemWithRelations | null;
     isOpen: boolean;
     onClose: () => void;
 }
@@ -65,7 +65,7 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
             queryClient.invalidateQueries({ queryKey: ['inventory_items'] });
             handleOpenChange(false);
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
             setError(err.message || 'Ocurrió un error en la transacción.');
         }
     });

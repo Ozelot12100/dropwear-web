@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { inventoryService } from '../services/inventory';
+import type { InventoryItemWithRelations } from '../types';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -23,7 +24,7 @@ export default function Dashboard() {
     const queryClient = useQueryClient();
 
     // Estado para controlar el Modal Transaccional
-    const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [selectedItem, setSelectedItem] = useState<InventoryItemWithRelations | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Estado para controlar el Modal de Alta de Nueva Prenda
@@ -97,7 +98,7 @@ export default function Dashboard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {items?.map((item: any) => (
+                                {items?.map((item: InventoryItemWithRelations) => (
                                     <TableRow
                                         key={item.id}
                                         className="cursor-pointer hover:bg-gray-50"
