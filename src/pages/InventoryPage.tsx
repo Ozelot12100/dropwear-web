@@ -118,7 +118,7 @@ function TableSkeletons() {
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
-export default function Dashboard() {
+export default function InventoryPage() {
     const queryClient = useQueryClient();
     const [selectedItem, setSelectedItem] = useState<InventoryItemWithRelations | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);

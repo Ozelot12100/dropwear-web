@@ -109,23 +109,19 @@ Todos los métodos que requieren privilegios elevados invocan **Supabase Edge Fu
 
 ---
 
-## 6. Backlog — Pendientes 🚀
+## 6. Backlog — Completados ✅
 
-### 6.1 Vistas Condicionales según Rol (RBAC) — Prioridad Alta
-- **Necesidad:** Un "Repartidor" o "Vendedor" solo deben ver y acceder a lo que les compete. Actualmente todos los usuarios autenticados ven las mismas rutas.
-- **Desarrollo sugerido:** Crear un wrapper `<RoleGuard allowed={['socio', 'superadmin']}>` que oculte botones de acción ("Agregar Prenda", "Actualizar") y bloquee rutas completas (ej. `/staff`, `/catalogs`) basándose en `profile.role` del hook `useAuth()`. El componente `PrivateRoute.tsx` es el punto de integración natural.
+### 6.1 Vistas Condicionales según Rol (RBAC) — ✅ Implementado
+- **Estado:** Se implementó el componente `<RoleGuard />` para proteger componentes individuales (como botones de "Agregar Prenda") y rutas completas en `App.tsx` (ej. `/staff`, `/catalogs`).
 
-### 6.2 Diseño Mobile-First — Prioridad Media
-- **Necesidad:** Los socios operan desde celulares en movimiento. La tabla del inventario no es usable en pantallas de 390px.
-- **Desarrollo sugerido:** Transformar la tabla de `InventoryPage` en tarjetas apilables (`card view`) para pantallas `< md`. Usar `overflow-x-auto` como fallback mínimo. Botones de acción deben ser suficientemente grandes para ser pulsados con el pulgar.
+### 6.2 Diseño Mobile-First — ✅ Implementado
+- **Estado:** Se mejoró `InventoryPage` incorporando el componente `<ItemCard />` que renderiza las prendas en tarjetas amigables para dispositivos móviles, dejando la `<Table />` estándar solo para desktop.
 
-### 6.3 Dashboard / Resumen Ejecutivo — Prioridad Media
-- **Necesidad:** Los socios y el superadmin necesitan una vista rápida del estado financiero y del inventario sin navegar por todo.
-- **Desarrollo sugerido:** Página de inicio con métricas clave: total de prendas disponibles, vendidas en el día, monto total recaudado hoy, últimas 5 transacciones. Consumir `inventory_items` e `inventory_logs` con agregaciones.
+### 6.3 Dashboard / Resumen Ejecutivo — ✅ Implementado
+- **Estado:** Se creó la página `DashboardPage.tsx` accesible en `/` que consume el nuevo servicio `dashboard.ts` para presentar métricas clave (disponibles, apartados, ventas de hoy, ingresos) y las últimas actividades (logs) de manera gráfica.
 
-### 6.4 Página de Perfil de Usuario — Prioridad Baja
-- **Necesidad:** Actualmente el usuario solo puede cambiar su contraseña desde el menú del Navbar. No hay vista de perfil.
-- **Desarrollo sugerido:** Página `/perfil` que muestre nombre, email, rol, fecha de ingreso y el botón de cambiar contraseña en un contexto más amplio.
+### 6.4 Página de Perfil de Usuario — ✅ Implementado
+- **Estado:** Se desarrolló la ruta `/profile` con `ProfilePage.tsx` para permitir a los usuarios visualizar su rol, email y gestionar su contraseña en un apartado dedicado.
 
 ---
 

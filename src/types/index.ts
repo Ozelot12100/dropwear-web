@@ -12,6 +12,7 @@ export type InventoryItem = Database['public']['Tables']['inventory_items']['Row
 export type Product = Database['public']['Tables']['products']['Row'];
 export type Category = Database['public']['Tables']['categories']['Row'];
 export type Brand = Database['public']['Tables']['brands']['Row'];
+export type InventoryLog = Database['public']['Tables']['inventory_logs']['Row'];
 
 /**
  * Shape real que devuelve inventoryService.getAllItems().
@@ -28,3 +29,19 @@ export interface InventoryItemWithRelations extends InventoryItem {
     } | null;
 }
 
+/**
+ * Shape que devuelve dashboardService.getRecentActivity()
+ */
+export interface InventoryLogWithRelations extends InventoryLog {
+    user_profiles: {
+        full_name: string;
+        role: UserRole;
+    } | null;
+    inventory_items: {
+        size: string;
+        color: string;
+        price_sold: number | null;
+        status: ItemStatus;
+        products: { name: string } | null;
+    } | null;
+}

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks';
 import { RoleGuard } from './RoleGuard';
-import { LogOut, LayoutDashboard, BookOpen, ClipboardList, Users } from 'lucide-react';
+import { LogOut, LayoutDashboard, BookOpen, ClipboardList, Users, Package } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import {
     DropdownMenu,
@@ -26,6 +26,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export function Navbar() {
     const { profile, signOut } = useAuth();
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const navigate = useNavigate();
 
     return (
         <nav className="border-b bg-white">
@@ -41,6 +42,11 @@ export function Navbar() {
                     <nav className="hidden sm:flex items-center gap-1">
                         <NavLink to="/" end className={navLinkClass}>
                             <LayoutDashboard className="h-4 w-4" />
+                            Inicio
+                        </NavLink>
+
+                        <NavLink to="/inventory" className={navLinkClass}>
+                            <Package className="h-4 w-4" />
                             Inventario
                         </NavLink>
 
@@ -96,6 +102,9 @@ export function Navbar() {
                                     </DropdownMenuLabel>
                                 </DropdownMenuGroup>
                                 <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+                                    Mi Perfil
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setIsPasswordModalOpen(true)} className="cursor-pointer">
                                     Cambiar contraseña
                                 </DropdownMenuItem>
