@@ -24,7 +24,8 @@ Deno.serve(async (req) => {
       }
     )
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    const token = authHeader.replace('Bearer ', '').trim()
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
     if (userError || !user) throw new Error(`Token inválido o expirado: ${userError?.message || 'Desconocido'}`)
 
     const { data: profile } = await supabaseClient
