@@ -157,8 +157,8 @@ export default function Dashboard() {
 
     // Filtro combinado: estado + búsqueda de texto
     // useMemo evita recalcular en renders que no cambian los datos o los filtros
-    const filtered = useMemo(() => {
-        let result = items ?? [];
+    const filtered = useMemo((): InventoryItemWithRelations[] => {
+        let result: InventoryItemWithRelations[] = items ?? [];
 
         // 1. Filtro por estado
         if (statusFilter !== 'todos') {

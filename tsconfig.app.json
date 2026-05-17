@@ -16,6 +16,7 @@
     "jsx": "react-jsx",
 
     /* Base Url y Alias para shadcn */
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]

@@ -1,6 +1,5 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks';
-import { RoleGuard } from './RoleGuard';
 import { LayoutDashboard, BookOpen, ClipboardList } from 'lucide-react';
 
 const TABS = [

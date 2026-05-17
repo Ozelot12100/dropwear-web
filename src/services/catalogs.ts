@@ -24,14 +24,16 @@ export const catalogService = {
     async createBrand(name: string): Promise<void> {
         const { error } = await supabase
             .from('brands')
-            .insert({ name: name.trim() });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .insert({ name: name.trim() } as any);
         if (error) throw error;
     },
 
     async updateBrand(id: number, name: string): Promise<void> {
         const { error } = await supabase
             .from('brands')
-            .update({ name: name.trim() })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update({ name: name.trim() } as never)
             .eq('id', id);
         if (error) throw error;
     },
@@ -61,14 +63,16 @@ export const catalogService = {
     async createCategory(name: string): Promise<void> {
         const { error } = await supabase
             .from('categories')
-            .insert({ name: name.trim() });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .insert({ name: name.trim() } as any);
         if (error) throw error;
     },
 
     async updateCategory(id: number, name: string): Promise<void> {
         const { error } = await supabase
             .from('categories')
-            .update({ name: name.trim() })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update({ name: name.trim() } as never)
             .eq('id', id);
         if (error) throw error;
     },
@@ -102,7 +106,7 @@ export const catalogService = {
             `)
             .order('name', { ascending: true });
         if (error) throw error;
-        return data as ProductWithRelations[];
+        return data as unknown as ProductWithRelations[];
     },
 
     async createProduct(payload: {
@@ -114,13 +118,14 @@ export const catalogService = {
     }): Promise<void> {
         const { error } = await supabase
             .from('products')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .insert({
                 name: payload.name.trim(),
                 description: payload.description?.trim() || null,
                 base_price: payload.base_price,
                 brand_id: payload.brand_id,
                 category_id: payload.category_id,
-            });
+            } as any);
         if (error) throw error;
     },
 
@@ -136,11 +141,12 @@ export const catalogService = {
     ): Promise<void> {
         const { error } = await supabase
             .from('products')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .update({
                 ...payload,
                 name: payload.name?.trim(),
                 description: payload.description?.trim() || null,
-            })
+            } as never)
             .eq('id', id);
         if (error) throw error;
     },

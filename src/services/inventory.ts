@@ -1,34 +1,34 @@
 import { supabase } from '../lib/supabase';
-import type { ItemStatus } from '../types';
+import type { ItemStatus, LogAction, InventoryItemWithRelations } from '../types';
 
 export const inventoryService = {
     /**
      * Obtiene todos los ítems del inventario con sus relaciones completas
      * (Producto, Marca y Categoría)
      */
-    async getAllItems() {
+    async getAllItems(): Promise<InventoryItemWithRelations[]> {
         const { data, error } = await supabase
             .from('inventory_items')
-            // Inner Join implícito de Supabase:
             .select(`
-        id,
-        size,
-        color,
-        status,
-        price_sold,
-        created_at,
-        products (
-          id,
-          name,
-          base_price,
-          brands (name),
-          categories (name)
-        )
-      `)
+                id,
+                size,
+                color,
+                status,
+                price_sold,
+                created_at,
+                products (
+                    id,
+                    name,
+                    base_price,
+                    brands ( name ),
+                    categories ( name )
+                )
+            `)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return data as any;
     },
 
     /**
@@ -56,42 +56,40 @@ export const inventoryService = {
 
         if (fetchError) throw fetchError;
 
-        // TODO: En producción estricta esto se englobaría en un procedimiento almacenado (RPC)
-        // en PostgreSQL para verdadera atomicidad, pero para el MVP lo resolvemos secuencialmente:
-
         // 2. Actualizar el estado del ítem
         const { error: updateError } = await supabase
             .from('inventory_items')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .update({
                 status: newStatus,
                 price_sold: newStatus === 'vendido' ? priceSold : null,
                 updated_by: userId,
                 updated_at: new Date().toISOString(),
-            })
+            } as never)
             .eq('id', itemId);
 
         if (updateError) throw updateError;
 
         // 3. Registrar de forma inmutable el evento transaccional
-        let actionType: any = 'actualizacion_estado';
+        let actionType: LogAction = 'actualizacion_estado';
         if (newStatus === 'vendido') actionType = 'venta';
         else if (newStatus === 'apartado') actionType = 'apartado';
         else if (newStatus === 'devuelto') actionType = 'devolucion';
 
         const { error: logError } = await supabase
             .from('inventory_logs')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .insert({
                 item_id: itemId,
                 partner_id: userId,
                 action: actionType,
-                previous_status: currentItem.status,
+                previous_status: (currentItem as { status: ItemStatus }).status,
                 new_status: newStatus,
                 notes: notes || null,
-            });
+            } as never);
 
         if (logError) {
             console.error('Error al insertar el log:', logError);
-            // El ítem se actualizó pero el log falló. 
             throw new Error("Ítem actualizado, pero falló el registro en la bitácora.");
         }
 
@@ -117,12 +115,13 @@ export const inventoryService = {
         // 1. Insertar el ítem físico (status 'disponible' por default del esquema)
         const { data: newItem, error: insertError } = await supabase
             .from('inventory_items')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .insert({
                 product_id: productId,
                 size: size.trim().toUpperCase(),
                 color: color.trim().toLowerCase(),
                 updated_by: userId,
-            })
+            } as never)
             .select('id')
             .single();
 
@@ -131,14 +130,15 @@ export const inventoryService = {
         // 2. Registrar el evento de creación en la bitácora (inmutable)
         const { error: logError } = await supabase
             .from('inventory_logs')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .insert({
-                item_id: newItem.id,
+                item_id: (newItem as { id: number }).id,
                 partner_id: userId,
-                action: 'creacion',
+                action: 'creacion' as LogAction,
                 previous_status: null,
-                new_status: 'disponible',
+                new_status: 'disponible' as ItemStatus,
                 notes: null,
-            });
+            } as never);
 
         if (logError) {
             console.error('Error al registrar log de creación:', logError);
@@ -148,4 +148,3 @@ export const inventoryService = {
         return newItem;
     },
 };
-

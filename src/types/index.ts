@@ -1,7 +1,7 @@
 export * from './database.types';
 
 // Tipos auxiliares derivados para simplificar el código a lo largo del frontend
-import { Database } from './database.types';
+import type { Database } from './database.types';
 
 export type UserRole = Database['public']['Enums']['user_role'];
 export type ItemStatus = Database['public']['Enums']['item_status'];

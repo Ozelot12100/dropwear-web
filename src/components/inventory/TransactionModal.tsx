@@ -52,6 +52,8 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                 throw new Error('Ingresa un precio de venta válido');
             }
 
+            if (!item) throw new Error('No hay prenda seleccionada.');
+
             await inventoryService.updateItemStatus({
                 itemId: item.id,
                 newStatus: selectedStatus as ItemStatus,
