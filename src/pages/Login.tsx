@@ -22,7 +22,7 @@ export default function Login() {
             const cleanEmail = email.trim(); // Importante para móviles (espacios automáticos)
 
             // Agregamos un protector de tiempo (Timeout de 10 segundos) por si la red del móvil bloquea la petición
-            const timeoutPromise = new Promise((_, reject) => 
+            const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error("La red tardó demasiado en responder (Timeout).")), 10000)
             );
 
@@ -33,14 +33,17 @@ export default function Login() {
 
             // Usamos Promise.race para no quedarnos atascados infinitamente
             const response: any = await Promise.race([authPromise, timeoutPromise]);
-            
+
             if (response?.error) {
                 // Si la respuesta regresó pero con error de Supabase
                 setError(`Error de autenticación: ${response.error.message || 'Credenciales inválidas.'}`);
                 setLoading(false);
             } else if (response?.data?.session) {
                 // Éxito real
-                window.location.href = '/';
+                // No hacemos ni navigate ni location.href. 
+                // Dejamos que el listener de AuthContext (onAuthStateChange) 
+                // se dispare naturalmente, settee la sesion, y App.tsx reaccione 
+                // para redirigirnos a la raiz. Evitamos interrumpir promesas o locks de Supabase.
             } else {
                 // Respuesta inesperada
                 setError('No se pudo establecer la sesión. Respuesta vacía del servidor.');
