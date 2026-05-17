@@ -7,7 +7,7 @@ import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { UserPlus, ShieldAlert, Users } from 'lucide-react';
+import { UserPlus, ShieldAlert, Users, Key } from 'lucide-react';
 
 export default function StaffPage() {
     const [users, setUsers] = useState<UserProfile[]>([]);
@@ -15,6 +15,13 @@ export default function StaffPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [error, setError] = useState('');
+
+    // Estado para el modal de restablecer contraseña
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [userToReset, setUserToReset] = useState<UserProfile | null>(null);
+    const [newPassword, setNewPassword] = useState('');
+    const [resetError, setResetError] = useState('');
+    const [isResetting, setIsResetting] = useState(false);
 
     const [formData, setFormData] = useState({
         email: '',
@@ -57,6 +64,25 @@ export default function StaffPage() {
             setError(err.message || 'Error al crear el usuario');
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setResetError('');
+        if (!userToReset) return;
+        
+        setIsResetting(true);
+        try {
+            await usersService.resetPassword(userToReset.id, newPassword);
+            setIsResetModalOpen(false);
+            setUserToReset(null);
+            setNewPassword('');
+            alert(`Contraseña de ${userToReset.full_name} actualizada correctamente.`);
+        } catch (err: any) {
+            setResetError(err.message || 'Error al restablecer contraseña');
+        } finally {
+            setIsResetting(false);
         }
     };
 
@@ -154,6 +180,47 @@ export default function StaffPage() {
                         </form>
                     </DialogContent>
                 </Dialog>
+
+                {/* Modal para restablecer contraseña */}
+                <Dialog open={isResetModalOpen} onOpenChange={setIsResetModalOpen}>
+                    <DialogContent className="sm:max-w-md bg-white">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl">Restablecer Contraseña</DialogTitle>
+                        </DialogHeader>
+                        
+                        {resetError && (
+                            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
+                                <ShieldAlert className="w-4 h-4 shrink-0" />
+                                <span className="font-medium">{resetError}</span>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleResetPassword} className="space-y-4 py-4">
+                            <p className="text-sm text-gray-500 mb-4">
+                                Ingresa una nueva contraseña para <strong>{userToReset?.full_name}</strong>.
+                            </p>
+                            <div className="space-y-2">
+                                <Label htmlFor="new_pwd">Nueva Contraseña</Label>
+                                <Input 
+                                    id="new_pwd" 
+                                    type="password"
+                                    placeholder="Mínimo 6 caracteres"
+                                    required 
+                                    minLength={6}
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                />
+                            </div>
+                            <Button 
+                                type="submit" 
+                                className="w-full bg-gray-900 hover:bg-black text-white" 
+                                disabled={isResetting}
+                            >
+                                {isResetting ? 'Actualizando...' : 'Actualizar Contraseña'}
+                            </Button>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             <div className="border rounded-xl bg-white shadow-sm overflow-hidden">
@@ -164,6 +231,7 @@ export default function StaffPage() {
                             <TableHead>Rol</TableHead>
                             <TableHead>Fecha de Ingreso</TableHead>
                             <TableHead className="text-right">ID del Sistema</TableHead>
+                            <TableHead className="text-center w-[80px]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -173,7 +241,7 @@ export default function StaffPage() {
                             </TableRow>
                         ) : users.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="h-32 text-center text-gray-500">No hay colaboradores registrados.</TableCell>
+                                <TableCell colSpan={5} className="h-32 text-center text-gray-500">No hay colaboradores registrados.</TableCell>
                             </TableRow>
                         ) : (
                             users.map((user) => (
@@ -194,6 +262,22 @@ export default function StaffPage() {
                                     </TableCell>
                                     <TableCell className="text-right text-gray-400 text-xs font-mono">
                                         {user.id.split('-')[0]}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                setUserToReset(user);
+                                                setIsResetModalOpen(true);
+                                                setNewPassword('');
+                                                setResetError('');
+                                            }}
+                                            className="text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                                            title="Cambiar contraseña"
+                                        >
+                                            <Key className="w-4 h-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))

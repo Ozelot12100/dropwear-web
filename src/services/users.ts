@@ -38,7 +38,25 @@ export const usersService = {
         }
 
         // Si la función nos responde exitosamente un JSON pero con una propiedad { error: 'Mensaje' }
-        // (por ejemplo: "Permisos insuficientes" o "El correo ya existe")
+        if (data?.error) {
+            console.error('La Edge Function retornó un error controlado:', data.error);
+            throw new Error(data.error);
+        }
+
+        return data;
+    },
+
+    // 3. Ejecutar la Edge Function para restablecer contraseña de cualquier usuario
+    async resetPassword(targetUserId: string, newPassword: string): Promise<{ message: string }> {
+        const { data, error } = await supabase.functions.invoke('reset-password', {
+            body: { target_user_id: targetUserId, new_password: newPassword }
+        });
+
+        if (error) {
+            console.error('Error invocando Edge Function reset-password:', error);
+            throw new Error(error.message || 'Error de conexión con el servidor.');
+        }
+
         if (data?.error) {
             console.error('La Edge Function retornó un error controlado:', data.error);
             throw new Error(data.error);
