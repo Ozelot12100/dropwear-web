@@ -63,5 +63,24 @@ export const usersService = {
         }
 
         return data;
+    },
+
+    // 4. Ejecutar la Edge Function para bloquear/desbloquear un usuario
+    async toggleUserStatus(targetUserId: string, action: 'ban' | 'unban'): Promise<{ message: string }> {
+        const { data, error } = await supabase.functions.invoke('toggle-user-status', {
+            body: { target_user_id: targetUserId, action }
+        });
+
+        if (error) {
+            console.error('Error invocando Edge Function toggle-user-status:', error);
+            throw new Error(error.message || 'Error de conexión con el servidor.');
+        }
+
+        if (data?.error) {
+            console.error('La Edge Function retornó un error controlado:', data.error);
+            throw new Error(data.error);
+        }
+
+        return data;
     }
 };

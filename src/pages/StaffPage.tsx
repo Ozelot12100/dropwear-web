@@ -7,7 +7,8 @@ import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { UserPlus, ShieldAlert, Users, Key } from 'lucide-react';
+import { UserPlus, ShieldAlert, Users, Key, UserX, UserCheck, AlertTriangle } from 'lucide-react';
+import { useAuth } from '../hooks';
 
 export default function StaffPage() {
     const [users, setUsers] = useState<UserProfile[]>([]);
@@ -22,6 +23,15 @@ export default function StaffPage() {
     const [newPassword, setNewPassword] = useState('');
     const [resetError, setResetError] = useState('');
     const [isResetting, setIsResetting] = useState(false);
+
+    // Estado para el modal de Bloqueo
+    const [isBanModalOpen, setIsBanModalOpen] = useState(false);
+    const [userToBan, setUserToBan] = useState<UserProfile | null>(null);
+    const [banAction, setBanAction] = useState<'ban'|'unban'>('ban');
+    const [banError, setBanError] = useState('');
+    const [isBanning, setIsBanning] = useState(false);
+
+    const { user: currentUser } = useAuth();
 
     const [formData, setFormData] = useState({
         email: '',
@@ -83,6 +93,25 @@ export default function StaffPage() {
             setResetError(err.message || 'Error al restablecer contraseña');
         } finally {
             setIsResetting(false);
+        }
+    };
+
+    const handleToggleBan = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setBanError('');
+        if (!userToBan) return;
+        
+        setIsBanning(true);
+        try {
+            await usersService.toggleUserStatus(userToBan.id, banAction);
+            setIsBanModalOpen(false);
+            setUserToBan(null);
+            await loadUsers();
+            alert(`Usuario ${banAction === 'ban' ? 'bloqueado' : 'desbloqueado'} correctamente.`);
+        } catch (err: any) {
+            setBanError(err.message || 'Error al cambiar estado del usuario');
+        } finally {
+            setIsBanning(false);
         }
     };
 
@@ -221,6 +250,51 @@ export default function StaffPage() {
                         </form>
                     </DialogContent>
                 </Dialog>
+
+                {/* Modal para Bloquear/Desbloquear */}
+                <Dialog open={isBanModalOpen} onOpenChange={setIsBanModalOpen}>
+                    <DialogContent className="sm:max-w-md bg-white">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl text-red-600 flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5" />
+                                {banAction === 'ban' ? 'Bloquear Usuario' : 'Desbloquear Usuario'}
+                            </DialogTitle>
+                        </DialogHeader>
+                        
+                        {banError && (
+                            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
+                                <ShieldAlert className="w-4 h-4 shrink-0" />
+                                <span className="font-medium">{banError}</span>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleToggleBan} className="space-y-4 py-4">
+                            <p className="text-sm text-gray-700 mb-4">
+                                {banAction === 'ban' 
+                                    ? `¿Estás seguro de que deseas revocar el acceso de ${userToBan?.full_name}? Ya no podrá iniciar sesión en la plataforma, pero su historial se mantendrá intacto.`
+                                    : `¿Deseas restaurar el acceso de ${userToBan?.full_name}? Podrá volver a iniciar sesión con normalidad.`
+                                }
+                            </p>
+                            <div className="flex gap-3 justify-end mt-6">
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    onClick={() => setIsBanModalOpen(false)}
+                                    disabled={isBanning}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button 
+                                    type="submit" 
+                                    className={banAction === 'ban' ? "bg-red-600 hover:bg-red-700 text-white" : "bg-green-600 hover:bg-green-700 text-white"} 
+                                    disabled={isBanning}
+                                >
+                                    {isBanning ? 'Procesando...' : (banAction === 'ban' ? 'Sí, Bloquear' : 'Sí, Desbloquear')}
+                                </Button>
+                            </div>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             <div className="border rounded-xl bg-white shadow-sm overflow-hidden">
@@ -244,9 +318,18 @@ export default function StaffPage() {
                                 <TableCell colSpan={5} className="h-32 text-center text-gray-500">No hay colaboradores registrados.</TableCell>
                             </TableRow>
                         ) : (
-                            users.map((user) => (
-                                <TableRow key={user.id} className="hover:bg-gray-50/50">
-                                    <TableCell className="font-medium text-gray-900">{user.full_name}</TableCell>
+                            users.map((user) => {
+                                const isActive = (user as any).is_active !== false; // Si no existe la columna asume activo
+                                return (
+                                <TableRow key={user.id} className={!isActive ? "bg-red-50/50 opacity-80" : "hover:bg-gray-50/50"}>
+                                    <TableCell className="font-medium text-gray-900">
+                                        <div className="flex items-center gap-2">
+                                            {user.full_name}
+                                            {!isActive && (
+                                                <Badge variant="outline" className="text-red-600 border-red-200 bg-red-50 text-[9px] uppercase">Bloqueado</Badge>
+                                            )}
+                                        </div>
+                                    </TableCell>
                                     <TableCell>
                                         <Badge 
                                             variant={user.role === 'superadmin' ? 'destructive' : 'secondary'}
@@ -264,23 +347,43 @@ export default function StaffPage() {
                                         {user.id.split('-')[0]}
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                                setUserToReset(user);
-                                                setIsResetModalOpen(true);
-                                                setNewPassword('');
-                                                setResetError('');
-                                            }}
-                                            className="text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-                                            title="Cambiar contraseña"
-                                        >
-                                            <Key className="w-4 h-4" />
-                                        </Button>
+                                        <div className="flex items-center justify-center gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setUserToReset(user);
+                                                    setIsResetModalOpen(true);
+                                                    setNewPassword('');
+                                                    setResetError('');
+                                                }}
+                                                className="text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                                                title="Cambiar contraseña"
+                                            >
+                                                <Key className="w-4 h-4" />
+                                            </Button>
+
+                                            {currentUser?.id !== user.id && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setUserToBan(user);
+                                                        setBanAction(isActive ? 'ban' : 'unban');
+                                                        setIsBanModalOpen(true);
+                                                        setBanError('');
+                                                    }}
+                                                    className={isActive ? "text-gray-500 hover:text-red-600 hover:bg-red-50" : "text-gray-500 hover:text-green-600 hover:bg-green-50"}
+                                                    title={isActive ? "Bloquear acceso" : "Desbloquear acceso"}
+                                                >
+                                                    {isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                                </Button>
+                                            )}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
-                            ))
+                            );
+                        })
                         )}
                     </TableBody>
                 </Table>
