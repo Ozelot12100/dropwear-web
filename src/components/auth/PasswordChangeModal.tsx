@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks';
+import { usersService } from '../../services/users';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -24,6 +25,8 @@ export function PasswordChangeModal({ isOpen, onClose }: PasswordChangeModalProp
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  
+  const { user } = useAuth();
 
   const handleReset = () => {
     setNewPassword('');
@@ -53,19 +56,11 @@ export function PasswordChangeModal({ isOpen, onClose }: PasswordChangeModalProp
 
     setLoading(true);
     try {
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("La solicitud tardó demasiado tiempo en responder (Timeout).")), 10000)
-      );
-
-      const updatePromise = supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      const { error: updateError } = await Promise.race([updatePromise, timeoutPromise]) as any;
-
-      if (updateError) {
-        throw updateError;
-      }
+      if (!user?.id) throw new Error("No hay un usuario activo detectado.");
+      
+      // En lugar de usar supabase.auth.updateUser (que tiene un bug que congela la promesa),
+      // invocamos nuestra propia Edge Function que hace el cambio seguro desde el backend.
+      await usersService.resetPassword(user.id, newPassword);
 
       setSuccess(true);
       // Cerrar la modal automáticamente después de mostrar el mensaje

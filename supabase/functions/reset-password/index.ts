@@ -30,19 +30,19 @@ Deno.serve(async (req) => {
       .eq('id', user.id)
       .single()
 
-    if (!profile || profile.role !== 'superadmin') {
-      return new Response(
-        JSON.stringify({ error: 'Permisos insuficientes. Solo un superadmin puede restablecer contraseñas.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      )
-    }
-
     const body = await req.json()
     const { target_user_id, new_password } = body
 
     if (!target_user_id || !new_password || new_password.length < 6) {
       return new Response(
         JSON.stringify({ error: 'Datos inválidos. Verifica el ID de usuario y que la contraseña tenga mínimo 6 caracteres.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      )
+    }
+
+    if (!profile || (profile.role !== 'superadmin' && user.id !== target_user_id)) {
+      return new Response(
+        JSON.stringify({ error: 'Permisos insuficientes. No puedes cambiar la contraseña de otra persona.' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       )
     }
