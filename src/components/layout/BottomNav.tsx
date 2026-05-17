@@ -1,13 +1,19 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks';
-import { LayoutDashboard, BookOpen, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, BookOpen, ClipboardList, Package, Users } from 'lucide-react';
 
 const TABS = [
     {
         to: '/',
-        label: 'Inventario',
+        label: 'Inicio',
         icon: LayoutDashboard,
         roles: null, // accesible para todos
+    },
+    {
+        to: '/inventory',
+        label: 'Inventario',
+        icon: Package,
+        roles: null, 
     },
     {
         to: '/catalogs',
@@ -20,6 +26,12 @@ const TABS = [
         label: 'Bitácora',
         icon: ClipboardList,
         roles: null,
+    },
+    {
+        to: '/staff',
+        label: 'Personal',
+        icon: Users,
+        roles: ['superadmin'] as const,
     },
 ];
 
