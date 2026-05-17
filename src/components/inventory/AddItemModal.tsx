@@ -16,6 +16,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'ÚNICA'];
+const COLOR_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/;
 
 interface AddItemModalProps {
     isOpen: boolean;
@@ -52,17 +53,26 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
         }
     };
 
+    const validateColor = (value: string): string | null => {
+        const trimmed = value.trim();
+        if (trimmed.length < 3) return 'El color debe tener al menos 3 letras.';
+        if (!COLOR_REGEX.test(trimmed)) return 'El color solo puede contener letras y espacios.';
+        return null;
+    };
+
     const mutation = useMutation({
         mutationFn: async () => {
             if (!user) throw new Error('Usuario no autenticado.');
             if (!productId) throw new Error('Selecciona un producto del catálogo.');
             if (!size) throw new Error('Selecciona una talla.');
-            if (!color.trim()) throw new Error('Ingresa el color de la prenda.');
+
+            const colorError = validateColor(color);
+            if (colorError) throw new Error(colorError);
 
             await inventoryService.addItem({
                 productId: Number(productId),
                 size,
-                color,
+                color: color.trim(),
                 userId: user.id,
             });
         },
@@ -143,7 +153,9 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
 
                         {/* Input de Color */}
                         <div className="grid gap-2">
-                            <Label htmlFor="color">Color *</Label>
+                            <Label htmlFor="color">
+                                Color * <span className="text-xs text-muted-foreground font-normal">(solo letras, mín. 3)</span>
+                            </Label>
                             <Input
                                 id="color"
                                 type="text"
@@ -153,6 +165,7 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
                                 required
                                 maxLength={30}
                             />
+                            <p className="text-xs text-muted-foreground text-right">{color.length}/30</p>
                         </div>
 
                         {/* Bloque de error */}

@@ -134,3 +134,52 @@ Para evitar la filtración de la clave maestra `SERVICE_ROLE_KEY` en el frontend
 * **Alta de Usuarios (`create-user`):** Permite crear identidades en `auth.users` e insertar automáticamente su perfil en `user_profiles`. El cliente invoca la función mediante `supabase.functions.invoke()`, que inyecta el JWT. La Edge Function valida que el `role` del emisor sea `superadmin` antes de procesar el alta utilizando privilegios de administrador.
 * **Restablecimiento de Contraseñas (`reset-password`):** Facilita que un superadmin pueda forzar la actualización de la contraseña de cualquier colaborador. Adicionalmente, esta misma función es utilizada por el propio usuario (sin importar su rol) para cambiar su propia contraseña desde su sesión. Esta decisión arquitectónica se tomó para evadir un *bug* visual en el cliente de `@supabase/supabase-js` que congela las promesas al actualizar tokens desde el navegador.
 * **Política de "Soft Delete" (Baneo / Suspensión) (`toggle-user-status`):** **Nunca se deben eliminar (Hard Delete)** registros de la tabla `auth.users` ni de `user_profiles`. Esto rompería la integridad referencial de `inventory_logs` (cuya columna `partner_id` quedaría en nulo, perdiendo la trazabilidad de auditoría de ventas y movimientos). Si un colaborador debe ser removido, su acceso debe ser revocado mediante "Baneo" (`ban_duration` en Supabase Auth) o modificando su `role` a un estado sin permisos, conservando así todo su historial de forma inmutable. La Edge Function `toggle-user-status` aplica penalizaciones de 100 años (876000h) en Supabase Auth y actualiza el campo `is_active` en la tabla `user_profiles` para reflejar visualmente el bloqueo en el frontend.
+* **Validación de tokens en Edge Functions:** Todas las Edge Functions utilizan `supabase.auth.getUser(token)` pasando el token JWT explícitamente (extraído del header `Authorization` mediante `authHeader.replace('Bearer ', '').trim()`), en combinación con `auth: { persistSession: false, autoRefreshToken: false }`. Esto evita el error `Auth session missing!` que ocurre cuando Deno intenta manejar sesiones con estado en un entorno sin storage persistente.
+
+## **9. Reglas de Validación de Formularios (Frontend)**
+
+Todas las modales de la aplicación aplican validación en dos capas: **capa de atributos HTML** (para UX inmediata) y **capa de lógica JavaScript** (para integridad de datos antes de enviar al servidor). Nunca se debe confiar únicamente en los atributos `required` o `type` del navegador, ya que pueden ser bypasseados.
+
+### 9.1 Modal — Cambiar Contraseña (propia sesión)
+
+| Campo | Regla | Mensaje de error |
+|---|---|---|
+| Nueva contraseña | Mínimo 6 caracteres | "La contraseña debe tener al menos 6 caracteres." |
+| Confirmar contraseña | Debe coincidir con el campo anterior | "Las contraseñas no coinciden." |
+
+### 9.2 Modal — Nuevo Colaborador (StaffPage)
+
+| Campo | Regla | Mensaje de error |
+|---|---|---|
+| Nombre completo | Mínimo 3 caracteres, sin espacios vacíos | "El nombre debe tener al menos 3 caracteres." |
+| Correo electrónico | Formato de email válido (regex) | "Ingresa un correo electrónico válido." |
+| Contraseña temporal | Mínimo 6 caracteres | "La contraseña debe tener al menos 6 caracteres." |
+| Confirmar contraseña | Debe coincidir | "Las contraseñas no coinciden." |
+| Rol | Debe ser uno de los valores del ENUM `user_role` | (controlado por el `<select>`, no necesita validación adicional) |
+- Al cerrar esta modal (con X o Cancelar), el formulario se resetea completamente para no dejar datos de una operación anterior.
+- El éxito se notifica mediante un mensaje `inline` dentro de la propia modal, no con `alert()`.
+
+### 9.3 Modal — Restablecer Contraseña (de otro usuario, StaffPage)
+
+| Campo | Regla | Mensaje de error |
+|---|---|---|
+| Nueva contraseña | Mínimo 6 caracteres (validado en JS, no solo en `minLength` HTML) | "La contraseña debe tener al menos 6 caracteres." |
+| Confirmar contraseña | Debe coincidir | "Las contraseñas no coinciden." |
+- El éxito se notifica mediante un mensaje `inline` dentro de la propia modal (se reemplazó el `alert()` nativo).
+- La modal se cierra automáticamente tras 2 segundos en caso de éxito.
+
+### 9.4 Modal — Agregar Prenda al Inventario (AddItemModal)
+
+| Campo | Regla | Mensaje de error |
+|---|---|---|
+| Producto | Debe seleccionar un ítem de la lista | "Selecciona un producto del catálogo." |
+| Talla | Debe seleccionar un valor de `SIZES` | "Selecciona una talla." |
+| Color | Mínimo 3 caracteres, solo letras y espacios (regex `/^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/`), máx 30 chars | "El color debe tener al menos 3 letras y solo puede contener letras." |
+
+### 9.5 Modal — Actualizar Artículo / Transacción (TransactionModal)
+
+| Campo | Regla | Mensaje de error |
+|---|---|---|
+| Nuevo estatus | Requerido; no puede ser igual al estatus actual del artículo | "El artículo ya tiene este estatus. Selecciona uno diferente." |
+| Precio cobrado | Requerido si el estatus es `vendido`; debe ser un número > 0 | "Ingresa un precio de venta válido." |
+| Notas | Opcional; máximo 200 caracteres | (contador de caracteres visible en el input) |

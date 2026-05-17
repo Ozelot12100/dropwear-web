@@ -21,6 +21,8 @@ export default function StaffPage() {
     const [isResetModalOpen, setIsResetModalOpen] = useState(false);
     const [userToReset, setUserToReset] = useState<UserProfile | null>(null);
     const [newPassword, setNewPassword] = useState('');
+    const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+    const [resetSuccess, setResetSuccess] = useState(false);
     const [resetError, setResetError] = useState('');
     const [isResetting, setIsResetting] = useState(false);
 
@@ -32,6 +34,9 @@ export default function StaffPage() {
     const [isBanning, setIsBanning] = useState(false);
 
     const { user: currentUser } = useAuth();
+
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [createSuccess, setCreateSuccess] = useState(false);
 
     const [formData, setFormData] = useState({
         email: '',
@@ -61,15 +66,45 @@ export default function StaffPage() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const resetCreateForm = () => {
+        setFormData({ email: '', password: '', full_name: '', role: 'socio' });
+        setConfirmPassword('');
+        setError('');
+        setCreateSuccess(false);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        // Validaciones JS
+        if (formData.full_name.trim().length < 3) {
+            setError('El nombre debe tener al menos 3 caracteres.');
+            return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            setError('Ingresa un correo electrónico válido.');
+            return;
+        }
+        if (formData.password.length < 6) {
+            setError('La contraseña debe tener al menos 6 caracteres.');
+            return;
+        }
+        if (formData.password !== confirmPassword) {
+            setError('Las contraseñas no coinciden.');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             await usersService.createUser(formData);
-            await loadUsers(); // Refrescar la tabla
-            setIsDialogOpen(false); // Cerrar modal
-            setFormData({ email: '', password: '', full_name: '', role: 'socio' }); // Limpiar formulario
+            await loadUsers();
+            setCreateSuccess(true);
+            setTimeout(() => {
+                setIsDialogOpen(false);
+                resetCreateForm();
+            }, 2000);
         } catch (err: any) {
             setError(err.message || 'Error al crear el usuario');
         } finally {
@@ -81,14 +116,28 @@ export default function StaffPage() {
         e.preventDefault();
         setResetError('');
         if (!userToReset) return;
-        
+
+        // Validaciones JS
+        if (newPassword.length < 6) {
+            setResetError('La contraseña debe tener al menos 6 caracteres.');
+            return;
+        }
+        if (newPassword !== resetConfirmPassword) {
+            setResetError('Las contraseñas no coinciden.');
+            return;
+        }
+
         setIsResetting(true);
         try {
             await usersService.resetPassword(userToReset.id, newPassword);
-            setIsResetModalOpen(false);
-            setUserToReset(null);
-            setNewPassword('');
-            alert(`Contraseña de ${userToReset.full_name} actualizada correctamente.`);
+            setResetSuccess(true);
+            setTimeout(() => {
+                setIsResetModalOpen(false);
+                setUserToReset(null);
+                setNewPassword('');
+                setResetConfirmPassword('');
+                setResetSuccess(false);
+            }, 2000);
         } catch (err: any) {
             setResetError(err.message || 'Error al restablecer contraseña');
         } finally {
@@ -128,7 +177,7 @@ export default function StaffPage() {
                     </div>
                 </div>
 
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetCreateForm(); }}>
                     <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium">
                         <UserPlus className="w-4 h-4 mr-2" />
                         Nuevo Colaborador
@@ -137,117 +186,164 @@ export default function StaffPage() {
                         <DialogHeader>
                             <DialogTitle className="text-xl">Agregar Personal</DialogTitle>
                         </DialogHeader>
-                        
-                        {error && (
-                            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
-                                <ShieldAlert className="w-4 h-4 shrink-0" />
-                                <span className="font-medium">{error}</span>
-                            </div>
-                        )}
 
-                        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="full_name">Nombre Completo</Label>
-                                <Input 
-                                    id="full_name" 
-                                    name="full_name"
-                                    placeholder="Ej. Juan Pérez"
-                                    required 
-                                    value={formData.full_name}
-                                    onChange={handleChange}
-                                />
+                        {createSuccess ? (
+                            <div className="py-6 flex flex-col items-center gap-3 text-center">
+                                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                                    <Key className="h-6 w-6 text-green-600" />
+                                </div>
+                                <p className="font-medium text-gray-900">¡Colaborador creado exitosamente!</p>
+                                <p className="text-sm text-gray-500">La cuenta ya está activa en el sistema.</p>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Correo Electrónico</Label>
-                                <Input 
-                                    id="email" 
-                                    name="email"
-                                    type="email" 
-                                    placeholder="correo@ejemplo.com"
-                                    required 
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Contraseña Temporal</Label>
-                                <Input 
-                                    id="password" 
-                                    name="password"
-                                    type="password" 
-                                    placeholder="Mínimo 6 caracteres"
-                                    required 
-                                    minLength={6}
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="role">Rol en el Sistema</Label>
-                                <select 
-                                    id="role"
-                                    name="role"
-                                    className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    value={formData.role}
-                                    onChange={handleChange}
-                                    required
-                                >
-                                    <option value="socio">Socio (Operaciones)</option>
-                                    <option value="vendedor">Vendedor (Limitado)</option>
-                                    <option value="repartidor">Repartidor (Entregas)</option>
-                                    <option value="contador">Contador (Lectura)</option>
-                                    <option value="superadmin">Super Administrador</option>
-                                </select>
-                            </div>
-                            <Button 
-                                type="submit" 
-                                className="w-full bg-gray-900 hover:bg-black text-white" 
-                                disabled={isSubmitting}
-                            >
-                                {isSubmitting ? 'Creando Usuario...' : 'Guardar Colaborador'}
-                            </Button>
-                        </form>
+                        ) : (
+                            <>
+                                {error && (
+                                    <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
+                                        <ShieldAlert className="w-4 h-4 shrink-0" />
+                                        <span className="font-medium">{error}</span>
+                                    </div>
+                                )}
+                                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="full_name">Nombre Completo</Label>
+                                        <Input
+                                            id="full_name"
+                                            name="full_name"
+                                            placeholder="Ej. Juan Pérez (mín. 3 caracteres)"
+                                            required
+                                            minLength={3}
+                                            value={formData.full_name}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">Correo Electrónico</Label>
+                                        <Input
+                                            id="email"
+                                            name="email"
+                                            type="email"
+                                            placeholder="correo@ejemplo.com"
+                                            required
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="password">Contraseña Temporal</Label>
+                                        <Input
+                                            id="password"
+                                            name="password"
+                                            type="password"
+                                            placeholder="Mínimo 6 caracteres"
+                                            required
+                                            minLength={6}
+                                            value={formData.password}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="confirm_password">Confirmar Contraseña</Label>
+                                        <Input
+                                            id="confirm_password"
+                                            type="password"
+                                            placeholder="Repite la contraseña"
+                                            required
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="role">Rol en el Sistema</Label>
+                                        <select
+                                            id="role"
+                                            name="role"
+                                            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={formData.role}
+                                            onChange={handleChange}
+                                            required
+                                        >
+                                            <option value="socio">Socio (Operaciones)</option>
+                                            <option value="vendedor">Vendedor (Limitado)</option>
+                                            <option value="repartidor">Repartidor (Entregas)</option>
+                                            <option value="contador">Contador (Lectura)</option>
+                                            <option value="superadmin">Super Administrador</option>
+                                        </select>
+                                    </div>
+                                    <Button
+                                        type="submit"
+                                        className="w-full bg-gray-900 hover:bg-black text-white"
+                                        disabled={isSubmitting}
+                                    >
+                                        {isSubmitting ? 'Creando Usuario...' : 'Guardar Colaborador'}
+                                    </Button>
+                                </form>
+                            </>
+                        )}
                     </DialogContent>
                 </Dialog>
 
                 {/* Modal para restablecer contraseña */}
-                <Dialog open={isResetModalOpen} onOpenChange={setIsResetModalOpen}>
+                <Dialog open={isResetModalOpen} onOpenChange={(open) => {
+                    setIsResetModalOpen(open);
+                    if (!open) { setNewPassword(''); setResetConfirmPassword(''); setResetError(''); setResetSuccess(false); }
+                }}>
                     <DialogContent className="sm:max-w-md bg-white">
                         <DialogHeader>
                             <DialogTitle className="text-xl">Restablecer Contraseña</DialogTitle>
                         </DialogHeader>
-                        
-                        {resetError && (
-                            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
-                                <ShieldAlert className="w-4 h-4 shrink-0" />
-                                <span className="font-medium">{resetError}</span>
-                            </div>
-                        )}
 
-                        <form onSubmit={handleResetPassword} className="space-y-4 py-4">
-                            <p className="text-sm text-gray-500 mb-4">
-                                Ingresa una nueva contraseña para <strong>{userToReset?.full_name}</strong>.
-                            </p>
-                            <div className="space-y-2">
-                                <Label htmlFor="new_pwd">Nueva Contraseña</Label>
-                                <Input 
-                                    id="new_pwd" 
-                                    type="password"
-                                    placeholder="Mínimo 6 caracteres"
-                                    required 
-                                    minLength={6}
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                />
+                        {resetSuccess ? (
+                            <div className="py-6 flex flex-col items-center gap-3 text-center">
+                                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                                    <Key className="h-6 w-6 text-green-600" />
+                                </div>
+                                <p className="font-medium text-gray-900">¡Contraseña actualizada!</p>
+                                <p className="text-sm text-gray-500">{userToReset?.full_name} ya puede usar su nueva clave.</p>
                             </div>
-                            <Button 
-                                type="submit" 
-                                className="w-full bg-gray-900 hover:bg-black text-white" 
-                                disabled={isResetting}
-                            >
-                                {isResetting ? 'Actualizando...' : 'Actualizar Contraseña'}
-                            </Button>
-                        </form>
+                        ) : (
+                            <>
+                                {resetError && (
+                                    <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
+                                        <ShieldAlert className="w-4 h-4 shrink-0" />
+                                        <span className="font-medium">{resetError}</span>
+                                    </div>
+                                )}
+                                <form onSubmit={handleResetPassword} className="space-y-4 py-4">
+                                    <p className="text-sm text-gray-500">
+                                        Nueva contraseña para <strong>{userToReset?.full_name}</strong>.
+                                    </p>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="new_pwd">Nueva Contraseña</Label>
+                                        <Input
+                                            id="new_pwd"
+                                            type="password"
+                                            placeholder="Mínimo 6 caracteres"
+                                            required
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="confirm_reset_pwd">Confirmar Contraseña</Label>
+                                        <Input
+                                            id="confirm_reset_pwd"
+                                            type="password"
+                                            placeholder="Repite la contraseña"
+                                            required
+                                            value={resetConfirmPassword}
+                                            onChange={(e) => setResetConfirmPassword(e.target.value)}
+                                        />
+                                    </div>
+                                    <Button
+                                        type="submit"
+                                        className="w-full bg-gray-900 hover:bg-black text-white"
+                                        disabled={isResetting}
+                                    >
+                                        {isResetting ? 'Actualizando...' : 'Actualizar Contraseña'}
+                                    </Button>
+                                </form>
+                            </>
+                        )}
                     </DialogContent>
                 </Dialog>
 
