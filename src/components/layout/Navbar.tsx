@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks';
 import { RoleGuard } from './RoleGuard';
 import { LogOut, LayoutDashboard, BookOpen, ClipboardList } from 'lucide-react';
-import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import {
     DropdownMenu,
