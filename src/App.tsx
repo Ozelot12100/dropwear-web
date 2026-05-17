@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CatalogsPage from './pages/CatalogsPage';
 import LogsPage from './pages/LogsPage';
+import StaffPage from './pages/StaffPage';
 import { useAuth } from './hooks';
 
 export default function App() {
@@ -35,6 +36,16 @@ export default function App() {
 
                 {/* Bitácora: todos los roles autenticados */}
                 <Route path="/logs" element={<LogsPage />} />
+
+                {/* Staff: solo superadmin */}
+                <Route
+                    path="/staff"
+                    element={
+                        <RoleGuard allowed={['superadmin']} mode="redirect">
+                            <StaffPage />
+                        </RoleGuard>
+                    }
+                />
             </Route>
 
             {/* Fallback: redirige cualquier ruta inexistente a la raíz */}
