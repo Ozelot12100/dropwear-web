@@ -13,7 +13,7 @@ const TABS = [
         to: '/inventory',
         label: 'Inventario',
         icon: Package,
-        roles: null, 
+        roles: null,
     },
     {
         to: '/catalogs',
@@ -48,7 +48,7 @@ export function BottomNav() {
             <div className="flex">
                 {TABS.map(({ to, label, icon: Icon, roles }) => {
                     const isRestricted = roles !== null;
-                    const hasAccess = !isRestricted || (profile?.role && roles.includes(profile.role as typeof roles[number]));
+                    const hasAccess = !isRestricted || (profile?.role && (roles as readonly string[]).includes(profile.role));
 
                     if (!hasAccess) return null;
 
@@ -58,10 +58,9 @@ export function BottomNav() {
                             to={to}
                             end={to === '/'}
                             className={({ isActive }) =>
-                                `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-                                    isActive
-                                        ? 'text-gray-900'
-                                        : 'text-gray-400'
+                                `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${isActive
+                                    ? 'text-gray-900'
+                                    : 'text-gray-400'
                                 }`
                             }
                         >

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -13,7 +12,6 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,7 +20,7 @@ export default function Login() {
 
         try {
             const cleanEmail = email.trim(); // Importante para móviles (espacios automáticos)
-            
+
             const { error: authError } = await supabase.auth.signInWithPassword({
                 email: cleanEmail,
                 password,
@@ -31,7 +29,7 @@ export default function Login() {
             if (authError) {
                 setError('Credenciales inválidas. Por favor verifica tu correo y contraseña.');
                 setLoading(false);
-            } 
+            }
             // Si es exitoso, App.tsx se encargará de redirigir a '/' gracias
             // a la actualización del AuthContext y onAuthStateChange.
             // Si forzamos navigate('/') aquí crearemos una condición de carrera
@@ -47,16 +45,16 @@ export default function Login() {
         <div className="min-h-screen flex items-center justify-center bg-gray-50/50 relative overflow-hidden">
             {/* Background Decorations */}
             <div className="absolute top-0 w-full h-full bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.1),rgba(255,255,255,0))]"></div>
-            
+
             <div className="w-full max-w-md px-4 sm:px-0 relative z-10">
                 <div className="mb-8 flex flex-col items-center">
                     <div className="relative">
-                        <img 
-                            src={Logo} 
-                            alt="DropWear Logo" 
-                            className="h-28 w-auto object-contain drop-shadow-sm" 
-                            // Sin invert, ya que el fondo de la pantalla y logo son claros/transparentes.
-                            // Si el logo original es negro, se verá perfecto sobre bg-gray-50.
+                        <img
+                            src={Logo}
+                            alt="DropWear Logo"
+                            className="h-28 w-auto object-contain drop-shadow-sm"
+                        // Sin invert, ya que el fondo de la pantalla y logo son claros/transparentes.
+                        // Si el logo original es negro, se verá perfecto sobre bg-gray-50.
                         />
                     </div>
                 </div>
@@ -111,8 +109,8 @@ export default function Login() {
                                 />
                             </div>
 
-                            <Button 
-                                type="submit" 
+                            <Button
+                                type="submit"
                                 disabled={loading}
                                 className="w-full bg-black hover:bg-gray-900 text-white font-semibold transition-all shadow-md mt-6 relative overflow-hidden group"
                             >
