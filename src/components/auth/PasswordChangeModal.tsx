@@ -53,9 +53,15 @@ export function PasswordChangeModal({ isOpen, onClose }: PasswordChangeModalProp
 
     setLoading(true);
     try {
-      const { error: updateError } = await supabase.auth.updateUser({
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("La solicitud tardó demasiado tiempo en responder (Timeout).")), 10000)
+      );
+
+      const updatePromise = supabase.auth.updateUser({
         password: newPassword,
       });
+
+      const { error: updateError } = await Promise.race([updatePromise, timeoutPromise]) as any;
 
       if (updateError) {
         throw updateError;
