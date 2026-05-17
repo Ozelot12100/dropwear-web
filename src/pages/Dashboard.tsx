@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { Skeleton } from '../components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { TransactionModal } from '../components/inventory/TransactionModal';
 import { AddItemModal } from '../components/inventory/AddItemModal';
@@ -78,6 +79,41 @@ function ItemCard({
                 <ChevronRight className="h-4 w-4 text-gray-400" />
             </div>
         </button>
+    );
+}
+
+// ── Skeletons de carga ────────────────────────────────────────────────────────
+function MobileSkeletons() {
+    return (
+        <div className="sm:hidden space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-white border border-l-4 border-l-gray-200 rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-12" />
+                    </div>
+                    <div className="flex gap-2">
+                        <Skeleton className="h-4 w-10 rounded-full" />
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-4 w-16 rounded-full" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function TableSkeletons() {
+    return (
+        <>
+            {Array.from({ length: 8 }).map((_, i) => (
+                <TableRow key={i}>
+                    {Array.from({ length: 7 }).map((_, j) => (
+                        <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                    ))}
+                </TableRow>
+            ))}
+        </>
     );
 }
 
@@ -154,11 +190,6 @@ export default function Dashboard() {
         return acc;
     }, {}) ?? {};
 
-    if (isLoading) return (
-        <div className="flex items-center justify-center h-48 text-gray-400 animate-pulse">
-            Cargando inventario...
-        </div>
-    );
     if (isError) return (
         <div className="flex items-center justify-center h-48 text-red-500">
             Error al cargar el inventario.
@@ -174,7 +205,11 @@ export default function Dashboard() {
                         Inventario
                     </h1>
                     <p className="text-xs sm:text-sm text-gray-500">
-                        {items?.length ?? 0} prendas · tiempo real
+                        {isLoading ? (
+                            <Skeleton className="h-3 w-28 mt-1" />
+                        ) : (
+                            <>{items?.length ?? 0} prendas · tiempo real</>
+                        )}
                     </p>
                 </div>
                 <RoleGuard allowed={['socio', 'superadmin']}>
@@ -242,19 +277,21 @@ export default function Dashboard() {
                 </p>
             )}
 
-            {/* ── Vista MÓVIL: tarjetas apilables ──────────────────── */}
-            <div className="sm:hidden space-y-2">
-                {filtered.map(item => (
-                    <ItemCard key={item.id} item={item} onPress={() => openItem(item)} />
-                ))}
-                {filtered.length === 0 && (
-                    <div className="text-center py-12 text-gray-400">
-                        {searchQuery ? `Sin resultados para "${searchRaw}"` : 'No hay prendas con ese estatus.'}
-                    </div>
-                )}
-            </div>
+            {/* ── Vista MÓVIL: skeleton o tarjetas ──────────────── */}
+            {isLoading ? <MobileSkeletons /> : (
+                <div className="sm:hidden space-y-2">
+                    {filtered.map(item => (
+                        <ItemCard key={item.id} item={item} onPress={() => openItem(item)} />
+                    ))}
+                    {filtered.length === 0 && (
+                        <div className="text-center py-12 text-gray-400">
+                            {searchQuery ? `Sin resultados para "${searchRaw}"` : 'No hay prendas con ese estatus.'}
+                        </div>
+                    )}
+                </div>
+            )}
 
-            {/* ── Vista DESKTOP: tabla ──────────────────────────────── */}
+            {/* ── Vista DESKTOP: skeleton o tabla ──────────────────── */}
             <Card className="hidden sm:block">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-base">Listado de Prendas</CardTitle>
@@ -274,7 +311,11 @@ export default function Dashboard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filtered.map((item: InventoryItemWithRelations) => (
+                                {/* Skeleton mientras carga */}
+                                {isLoading && <TableSkeletons />}
+
+                                {/* Datos */}
+                                {!isLoading && filtered.map((item: InventoryItemWithRelations) => (
                                     <TableRow
                                         key={item.id}
                                         className="cursor-pointer hover:bg-gray-50"
