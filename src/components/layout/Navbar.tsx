@@ -11,6 +11,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
+    DropdownMenuGroup,
 } from "../ui/dropdown-menu";
 import { PasswordChangeModal } from '../auth/PasswordChangeModal';
 import Logo from '../../assets/logo.png';
@@ -76,14 +77,16 @@ export function Navbar() {
                                 </span>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56 bg-white">
-                                <DropdownMenuLabel className="font-normal">
-                                    <div className="flex flex-col space-y-1">
-                                        <p className="text-sm font-medium leading-none">{profile?.full_name || 'Usuario'}</p>
-                                        <p className="text-xs leading-none text-gray-500">
-                                            Rol: {profile?.role || 'socio'}
-                                        </p>
-                                    </div>
-                                </DropdownMenuLabel>
+                                <DropdownMenuGroup>
+                                    <DropdownMenuLabel className="font-normal">
+                                        <div className="flex flex-col space-y-1">
+                                            <p className="text-sm font-medium leading-none">{profile?.full_name || 'Usuario'}</p>
+                                            <p className="text-xs leading-none text-gray-500">
+                                                Rol: {profile?.role || 'socio'}
+                                            </p>
+                                        </div>
+                                    </DropdownMenuLabel>
+                                </DropdownMenuGroup>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => setIsPasswordModalOpen(true)} className="cursor-pointer">
                                     Cambiar contraseña
