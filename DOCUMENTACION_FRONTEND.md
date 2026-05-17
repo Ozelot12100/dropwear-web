@@ -133,3 +133,20 @@ Todos los métodos que requieren privilegios elevados invocan **Supabase Edge Fu
 4. **Responsivo obligatorio:** Testear frecuentemente reduciendo el simulador del navegador a tamaños de iPhone 13 (390px).
 5. **Nunca usar `alert()`:** Toda notificación de éxito o error debe ser un mensaje `inline` dentro del componente correspondiente, nunca un `alert()` nativo del navegador.
 6. **Validación en dos capas:** Siempre añadir validación JS además de los atributos HTML (`required`, `minLength`, etc.). Los atributos HTML son bypasseables.
+
+---
+
+## 8. Siguientes Mejoras / Propuestas 💡
+
+A partir de la retroalimentación del equipo, se proponen los siguientes puntos para el próximo ciclo de desarrollo:
+
+### 8.1 Gestión y Cambio de Roles (Superadmin)
+- **Concepto:** Que un `superadmin` pueda modificar el rol de cualquier otra cuenta existente desde la vista de `StaffPage`.
+- **Análisis y Viabilidad:** Es una característica vital para la administración del equipo a largo plazo. Un `superadmin` definitivamente debe poder promover a alguien (ej. de `vendedor` a `socio`) o degradarlo, e incluso debería poder cambiar el rol de otro `superadmin` si este último dejara la empresa.
+- **Regla de Seguridad Crítica:** Para evitar un "bloqueo accidental" (lockout), el sistema debe impedir que un `superadmin` se cambie el rol **a sí mismo**. Si necesitas dejar de ser superadmin, otro superadmin debe hacerlo por ti.
+- **Implementación técnica:** Requerirá crear una nueva Edge Function (ej. `update-user-role`) ya que modificar roles involucra escalada de privilegios y debe ejecutarse del lado del servidor para evitar que usuarios malintencionados modifiquen su propio rol desde el cliente.
+
+### 8.2 Edición del Nombre Completo en el Perfil
+- **Concepto:** Permitir que los usuarios corrijan o actualicen su `full_name` (Nombre completo) desde la plataforma.
+- **Análisis y Viabilidad:** Absolutamente necesario. Es un estándar de usabilidad que el usuario tenga control sobre su información de visualización.
+- **Implementación técnica:** Se puede añadir fácilmente un modo de "Edición" en la recién creada `ProfilePage.tsx`. A diferencia de los roles o contraseñas, actualizar el propio nombre solo requiere hacer un `UPDATE` a la tabla `user_profiles`. Gracias a que tenemos RLS (Row Level Security) configurado, esto se puede hacer **directamente desde el cliente frontend** (sin Edge Function), ya que la base de datos permite que el usuario edite su propia fila.
