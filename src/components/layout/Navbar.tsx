@@ -1,7 +1,8 @@
 import { useAuth } from '../../hooks';
-import { Package, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import Logo from '../../assets/logo.png';
 
 export function Navbar() {
     const { profile, signOut } = useAuth();
@@ -12,7 +13,7 @@ export function Navbar() {
                 <div className="flex justify-between h-16 items-center">
                     {/* Logo y Branding */}
                     <div className="flex shrink-0 items-center gap-2">
-                        <Package className="h-8 w-8 text-indigo-600" />
+                        <img src={Logo} alt="DropWear Logo" className="h-8 w-auto" />
                         <span className="font-bold text-xl tracking-tight text-gray-900">
                             DropWear
                         </span>
