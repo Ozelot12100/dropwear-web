@@ -52,19 +52,25 @@ export function PasswordChangeModal({ isOpen, onClose }: PasswordChangeModalProp
     }
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-    setLoading(false);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
 
-    if (updateError) {
-      setError(updateError.message);
-    } else {
+      if (updateError) {
+        throw updateError;
+      }
+
       setSuccess(true);
-      // Optional: Auto-close after a few seconds
+      // Cerrar la modal automáticamente después de mostrar el mensaje
       setTimeout(() => {
         handleClose();
-      }, 3000);
+      }, 2500);
+    } catch (err: any) {
+      console.error("Error al actualizar contraseña:", err);
+      setError(err?.message || 'Ocurrió un error inesperado al actualizar la contraseña.');
+    } finally {
+      setLoading(false);
     }
   };
 
