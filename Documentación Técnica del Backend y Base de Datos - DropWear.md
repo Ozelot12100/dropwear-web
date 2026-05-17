@@ -98,7 +98,7 @@ CREATE TABLE inventory\_items (
 CREATE TABLE inventory\_logs (  
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,  
     item\_id BIGINT REFERENCES inventory\_items(id) ON DELETE CASCADE NOT NULL,  
-    partner\_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,  
+    partner\_id UUID REFERENCES user_profiles(id) ON DELETE SET NULL,  
     action log\_action NOT NULL,  
     previous\_status item\_status,  
     new\_status item\_status,  
