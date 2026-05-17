@@ -21,23 +21,34 @@ export default function Login() {
         try {
             const cleanEmail = email.trim(); // Importante para móviles (espacios automáticos)
 
-            const { error: authError } = await supabase.auth.signInWithPassword({
+            // Agregamos un protector de tiempo (Timeout de 10 segundos) por si la red del móvil bloquea la petición
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("La red tardó demasiado en responder (Timeout).")), 10000)
+            );
+
+            const authPromise = supabase.auth.signInWithPassword({
                 email: cleanEmail,
                 password,
             });
 
-            if (authError) {
-                setError('Credenciales inválidas. Por favor verifica tu correo y contraseña.');
+            // Usamos Promise.race para no quedarnos atascados infinitamente
+            const response: any = await Promise.race([authPromise, timeoutPromise]);
+            
+            if (response?.error) {
+                // Si la respuesta regresó pero con error de Supabase
+                setError(`Error de autenticación: ${response.error.message || 'Credenciales inválidas.'}`);
                 setLoading(false);
-            } else {
-                // Éxito: En vez de un `navigate` de React que causa rebotes, 
-                // hacemos un salto nativo para limpiar contextos y forzar un montaje limpio.
-                // Esto evade problemas de Safari/móviles pausando eventos reactivos.
+            } else if (response?.data?.session) {
+                // Éxito real
                 window.location.href = '/';
+            } else {
+                // Respuesta inesperada
+                setError('No se pudo establecer la sesión. Respuesta vacía del servidor.');
+                setLoading(false);
             }
         } catch (err: any) {
             console.error("Error inesperado en login:", err);
-            setError('Error de conexión o configuración (revisa si tienes navegación privada/bloqueo de cookies activo).');
+            setError(`Error del sistema: ${err.message || 'Bloqueo de red o caché activo.'}`);
             setLoading(false);
         }
     };
