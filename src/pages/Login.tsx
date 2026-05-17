@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -12,6 +13,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -40,10 +42,13 @@ export default function Login() {
                 setLoading(false);
             } else if (response?.data?.session) {
                 // Éxito real
-                // No hacemos ni navigate ni location.href. 
-                // Dejamos que el listener de AuthContext (onAuthStateChange) 
-                // se dispare naturalmente, settee la sesion, y App.tsx reaccione 
-                // para redirigirnos a la raiz. Evitamos interrumpir promesas o locks de Supabase.
+                // La app de Google (WebView) y algunos Chrome restringen los listeners de fondo (onAuthStateChange),
+                // lo que ocasiona que la UI no se entere autónomamente del éxito.
+                // Forzamos el salto con react-router, pero usando un retraso de seguridad de 500ms
+                // para permitir que Supabase termine de liberar sus candados internos (Web Locks).
+                setTimeout(() => {
+                    navigate('/', { replace: true });
+                }, 500);
             } else {
                 // Respuesta inesperada
                 setError('No se pudo establecer la sesión. Respuesta vacía del servidor.');
