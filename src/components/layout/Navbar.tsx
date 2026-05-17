@@ -71,12 +71,10 @@ export function Navbar() {
                         </div>
                         
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="relative h-10 w-10 rounded-full bg-gray-900 hover:bg-gray-800 focus-visible:ring-gray-900 p-0 overflow-hidden">
-                                    <span className="text-white font-bold text-lg">
-                                        {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U'}
-                                    </span>
-                                </Button>
+                            <DropdownMenuTrigger className="relative flex items-center justify-center h-10 w-10 rounded-full bg-gray-900 hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 p-0 overflow-hidden transition-colors">
+                                <span className="text-white font-bold text-lg">
+                                    {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U'}
+                                </span>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56 bg-white">
                                 <DropdownMenuLabel className="font-normal">
