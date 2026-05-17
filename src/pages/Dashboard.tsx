@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { inventoryService } from '../services/inventory';
@@ -6,11 +6,12 @@ import type { InventoryItemWithRelations, ItemStatus } from '../types';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Input } from '../components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { TransactionModal } from '../components/inventory/TransactionModal';
 import { AddItemModal } from '../components/inventory/AddItemModal';
 import { RoleGuard } from '../components/layout/RoleGuard';
-import { Plus, ChevronRight } from 'lucide-react';
+import { Plus, ChevronRight, Search, X } from 'lucide-react';
 
 // ── Colores por estado ────────────────────────────────────────────────────────
 const statusColorMap: Record<string, string> = {
@@ -87,6 +88,14 @@ export default function Dashboard() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [statusFilter, setStatusFilter] = useState<ItemStatus | 'todos'>('todos');
+    const [searchRaw, setSearchRaw] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Debounce: espera 250ms tras el último keystroke antes de filtrar
+    useEffect(() => {
+        const timer = setTimeout(() => setSearchQuery(searchRaw.trim().toLowerCase()), 250);
+        return () => clearTimeout(timer);
+    }, [searchRaw]);
 
     // React Query: fetching, loading state y caching
     const { data: items, isLoading, isError } = useQuery({
@@ -110,10 +119,34 @@ export default function Dashboard() {
         setIsModalOpen(true);
     };
 
-    // Aplicar filtro de estado
-    const filtered = statusFilter === 'todos'
-        ? items
-        : items?.filter(i => i.status === statusFilter);
+    // Filtro combinado: estado + búsqueda de texto
+    // useMemo evita recalcular en renders que no cambian los datos o los filtros
+    const filtered = useMemo(() => {
+        let result = items ?? [];
+
+        // 1. Filtro por estado
+        if (statusFilter !== 'todos') {
+            result = result.filter(i => i.status === statusFilter);
+        }
+
+        // 2. Filtro por texto (producto, marca, color, talla)
+        if (searchQuery) {
+            result = result.filter(i => {
+                const name  = i.products?.name?.toLowerCase() ?? '';
+                const brand = i.products?.brands?.name?.toLowerCase() ?? '';
+                const color = i.color.toLowerCase();
+                const size  = i.size.toLowerCase();
+                return (
+                    name.includes(searchQuery) ||
+                    brand.includes(searchQuery) ||
+                    color.includes(searchQuery) ||
+                    size.includes(searchQuery)
+                );
+            });
+        }
+
+        return result;
+    }, [items, statusFilter, searchQuery]);
 
     // Contadores por estado (para las pills de filtro)
     const counts = items?.reduce<Record<string, number>>((acc, i) => {
@@ -153,6 +186,28 @@ export default function Dashboard() {
                 </RoleGuard>
             </div>
 
+            {/* ── Búsqueda ─────────────────────────────────────────── */}
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Input
+                    type="search"
+                    placeholder="Buscar por producto, marca, talla o color..."
+                    value={searchRaw}
+                    onChange={e => setSearchRaw(e.target.value)}
+                    className="pl-9 pr-9 h-11 text-base sm:text-sm sm:h-9"
+                    autoComplete="off"
+                />
+                {searchRaw && (
+                    <button
+                        onClick={() => setSearchRaw('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label="Limpiar búsqueda"
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                )}
+            </div>
+
             {/* ── Filtros de estado (pills horizontales con scroll) ──── */}
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
                 {STATUS_FILTERS.map(({ label, value }) => {
@@ -177,14 +232,24 @@ export default function Dashboard() {
                 })}
             </div>
 
+            {/* Contador de resultados cuando hay búsqueda activa */}
+            {searchQuery && (
+                <p className="text-xs text-gray-500 -mt-2">
+                    {filtered.length === 0
+                        ? 'Sin resultados para esa búsqueda.'
+                        : `${filtered.length} prenda${filtered.length !== 1 ? 's' : ''} encontrada${filtered.length !== 1 ? 's' : ''}`
+                    }
+                </p>
+            )}
+
             {/* ── Vista MÓVIL: tarjetas apilables ──────────────────── */}
             <div className="sm:hidden space-y-2">
-                {filtered?.map(item => (
+                {filtered.map(item => (
                     <ItemCard key={item.id} item={item} onPress={() => openItem(item)} />
                 ))}
-                {filtered?.length === 0 && (
+                {filtered.length === 0 && (
                     <div className="text-center py-12 text-gray-400">
-                        No hay prendas con ese estatus.
+                        {searchQuery ? `Sin resultados para "${searchRaw}"` : 'No hay prendas con ese estatus.'}
                     </div>
                 )}
             </div>
@@ -209,7 +274,7 @@ export default function Dashboard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filtered?.map((item: InventoryItemWithRelations) => (
+                                {filtered.map((item: InventoryItemWithRelations) => (
                                     <TableRow
                                         key={item.id}
                                         className="cursor-pointer hover:bg-gray-50"
@@ -233,10 +298,10 @@ export default function Dashboard() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                {filtered?.length === 0 && (
+                                {filtered.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={7} className="h-24 text-center text-gray-400">
-                                            No hay artículos con ese estatus.
+                                            {searchQuery ? `Sin resultados para "${searchRaw}"` : 'No hay artículos con ese estatus.'}
                                         </TableCell>
                                     </TableRow>
                                 )}
