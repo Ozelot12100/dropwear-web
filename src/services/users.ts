@@ -103,16 +103,20 @@ export const usersService = {
         return data;
     },
 
-    // 6. Actualizar el nombre completo del propio usuario (no requiere Edge Function por RLS)
+    // 6. Actualizar el nombre completo del propio usuario usando Edge Function para evitar problemas de RLS
     async updateProfileName(userId: string, newName: string): Promise<void> {
-        const { error } = await (supabase as any)
-            .from('user_profiles')
-            .update({ full_name: newName })
-            .eq('id', userId);
+        const { data, error } = await supabase.functions.invoke('update-profile-name', {
+            body: { new_name: newName }
+        });
 
         if (error) {
-            console.error('Error al actualizar nombre:', error);
-            throw error;
+            console.error('Error invocando Edge Function update-profile-name:', error);
+            throw new Error(error.message || 'Error de conexión con el servidor.');
+        }
+
+        if (data?.error) {
+            console.error('La Edge Function retornó un error controlado:', data.error);
+            throw new Error(data.error);
         }
     }
 };
