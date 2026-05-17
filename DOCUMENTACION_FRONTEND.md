@@ -123,6 +123,14 @@ Todos los métodos que requieren privilegios elevados invocan **Supabase Edge Fu
 ### 6.4 Página de Perfil de Usuario — ✅ Implementado
 - **Estado:** Se desarrolló la ruta `/profile` con `ProfilePage.tsx` para permitir a los usuarios visualizar su rol, email y gestionar su contraseña en un apartado dedicado.
 
+### 6.5 Gestión y Cambio de Roles (Superadmin) — ✅ Implementado
+- **Estado:** Se añadió la funcionalidad para que un `superadmin` modifique el rol de cualquier otra cuenta desde `StaffPage`.
+- **Detalle de Seguridad:** Se creó la Edge Function `update-user-role`. El sistema bloquea explícitamente que un `superadmin` cambie su propio rol para evitar la pérdida de acceso accidental (lockout).
+
+### 6.6 Edición del Nombre Completo en el Perfil — ✅ Implementado
+- **Estado:** Se agregó el modo edición en `ProfilePage.tsx` permitiendo al usuario cambiar su nombre.
+- **Detalle de Seguridad:** Debido a bloqueos por la política RLS en `user_profiles`, se implementó a través de la nueva Edge Function `update-profile-name` para asegurar la correcta escritura y evasión segura del RLS.
+
 ---
 
 ## 7. Lineamientos de Código para el Equipo
@@ -136,17 +144,29 @@ Todos los métodos que requieren privilegios elevados invocan **Supabase Edge Fu
 
 ---
 
-## 8. Siguientes Mejoras / Propuestas 💡
+## 8. Siguientes Mejoras / Optimizaciones Mobile 📱
 
-A partir de la retroalimentación del equipo, se proponen los siguientes puntos para el próximo ciclo de desarrollo:
+Enfocado en potenciar la experiencia desde teléfonos móviles para el personal operativo, proponemos la siguiente hoja de ruta:
 
-### 8.1 Gestión y Cambio de Roles (Superadmin)
-- **Concepto:** Que un `superadmin` pueda modificar el rol de cualquier otra cuenta existente desde la vista de `StaffPage`.
-- **Análisis y Viabilidad:** Es una característica vital para la administración del equipo a largo plazo. Un `superadmin` definitivamente debe poder promover a alguien (ej. de `vendedor` a `socio`) o degradarlo, e incluso debería poder cambiar el rol de otro `superadmin` si este último dejara la empresa.
-- **Regla de Seguridad Crítica:** Para evitar un "bloqueo accidental" (lockout), el sistema debe impedir que un `superadmin` se cambie el rol **a sí mismo**. Si necesitas dejar de ser superadmin, otro superadmin debe hacerlo por ti.
-- **Implementación técnica:** Requerirá crear una nueva Edge Function (ej. `update-user-role`) ya que modificar roles involucra escalada de privilegios y debe ejecutarse del lado del servidor para evitar que usuarios malintencionados modifiquen su propio rol desde el cliente.
+### 8.1 Soporte PWA (Progressive Web App)
+- **Concepto:** Configurar un `manifest.json` y Service Workers para permitir que DropWear sea "instalable" en la pantalla de inicio de Android/iOS.
+- **Beneficio:** Brinda una experiencia de aplicación nativa a pantalla completa, eliminando la barra del navegador y mejorando la percepción de rendimiento.
 
-### 8.2 Edición del Nombre Completo en el Perfil
-- **Concepto:** Permitir que los usuarios corrijan o actualicen su `full_name` (Nombre completo) desde la plataforma.
-- **Análisis y Viabilidad:** Absolutamente necesario. Es un estándar de usabilidad que el usuario tenga control sobre su información de visualización.
-- **Implementación técnica:** Se puede añadir fácilmente un modo de "Edición" en la recién creada `ProfilePage.tsx`. A diferencia de los roles o contraseñas, actualizar el propio nombre solo requiere hacer un `UPDATE` a la tabla `user_profiles`. Gracias a que tenemos RLS (Row Level Security) configurado, esto se puede hacer **directamente desde el cliente frontend** (sin Edge Function), ya que la base de datos permite que el usuario edite su propia fila.
+### 8.2 Lector de Códigos QR / Barras con la Cámara
+- **Concepto:** Integrar un botón en la vista de inventario que active la cámara del dispositivo móvil para escanear etiquetas de la ropa.
+- **Beneficio:** Agiliza masivamente la búsqueda de prendas, el ingreso de nuevo stock o la marca de un artículo como "Vendido".
+
+### 8.3 Navegación Inferior (Bottom Tab Bar)
+- **Concepto:** Ocultar el menú superior (Hamburger Menu) en pantallas móviles y reemplazarlo por una barra de navegación inferior con iconos fijos (Dashboard, Inventario, Escáner, Perfil).
+- **Beneficio:** Mejora enormemente la ergonomía, ya que los pulgares del usuario alcanzan las opciones principales sin esfuerzo.
+
+### 8.4 Optimización de Formularios para Pantallas Táctiles
+- **Concepto:** Actualizar los campos de formularios (`input`) para aprovechar los teclados nativos móviles.
+- **Acciones:**
+  - Usar `inputMode="decimal"` o `type="number"` para precios (despliega teclado numérico).
+  - Componentes nativos o adaptados de `shadcn/ui` para la selección de fechas (calendario mobile-friendly).
+  - Gestos de deslizar (Swipe) para eliminar o editar registros rápidos en el inventario.
+
+### 8.5 Funcionalidad Pull-to-Refresh
+- **Concepto:** Permitir que los usuarios "jalen" la pantalla hacia abajo en el Dashboard o el Inventario para forzar la recarga de la información con `TanStack Query`.
+- **Beneficio:** Es el estándar moderno de la industria para refrescar datos en dispositivos táctiles.
