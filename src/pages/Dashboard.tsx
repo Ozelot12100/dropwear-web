@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { inventoryService } from '../services/inventory';
-import type { InventoryItemWithRelations } from '../types';
+import type { InventoryItemWithRelations, ItemStatus } from '../types';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -10,85 +10,196 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { TransactionModal } from '../components/inventory/TransactionModal';
 import { AddItemModal } from '../components/inventory/AddItemModal';
 import { RoleGuard } from '../components/layout/RoleGuard';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronRight } from 'lucide-react';
 
-
+// ── Colores por estado ────────────────────────────────────────────────────────
 const statusColorMap: Record<string, string> = {
     disponible: 'bg-green-100 text-green-800 hover:bg-green-100',
-    apartado: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
-    vendido: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100',
-    devuelto: 'bg-red-100 text-red-800 hover:bg-red-100',
+    apartado:   'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
+    vendido:    'bg-indigo-100 text-indigo-800 hover:bg-indigo-100',
+    devuelto:   'bg-red-100 text-red-800 hover:bg-red-100',
 };
 
+// Indicador de color del borde izquierdo de la tarjeta según estado
+const statusBorderMap: Record<string, string> = {
+    disponible: 'border-l-green-400',
+    apartado:   'border-l-yellow-400',
+    vendido:    'border-l-indigo-400',
+    devuelto:   'border-l-red-400',
+};
+
+// ── Filtros disponibles ───────────────────────────────────────────────────────
+const STATUS_FILTERS: { label: string; value: ItemStatus | 'todos' }[] = [
+    { label: 'Todos',       value: 'todos' },
+    { label: 'Disponible',  value: 'disponible' },
+    { label: 'Apartado',    value: 'apartado' },
+    { label: 'Vendido',     value: 'vendido' },
+    { label: 'Devuelto',    value: 'devuelto' },
+];
+
+// ── Tarjeta de ítem para móvil ───────────────────────────────────────────────
+function ItemCard({
+    item,
+    onPress,
+}: {
+    item: InventoryItemWithRelations;
+    onPress: () => void;
+}) {
+    return (
+        <button
+            onClick={onPress}
+            className={`w-full text-left bg-white border border-l-4 ${statusBorderMap[item.status] ?? 'border-l-gray-200'} rounded-lg p-4 flex items-center justify-between shadow-sm active:scale-[0.98] transition-transform`}
+        >
+            <div className="flex-1 min-w-0">
+                {/* Línea 1: Producto + marca */}
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-gray-900 truncate">{item.products?.name}</span>
+                    <span className="text-xs text-gray-400 shrink-0">{item.products?.brands?.name}</span>
+                </div>
+
+                {/* Línea 2: Talla + color + estado */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-mono uppercase">
+                        {item.size}
+                    </span>
+                    <span className="text-xs text-gray-500 capitalize">{item.color}</span>
+                    <Badge className={`text-[10px] h-5 ${statusColorMap[item.status] ?? 'bg-gray-100'}`}>
+                        {item.status.toUpperCase()}
+                    </Badge>
+                </div>
+            </div>
+
+            {/* Precio + flecha */}
+            <div className="flex items-center gap-2 ml-3 shrink-0">
+                <span className={`text-sm font-bold ${item.status === 'vendido' ? 'text-green-700' : 'text-gray-700'}`}>
+                    ${item.status === 'vendido' ? item.price_sold : item.products?.base_price}
+                </span>
+                <ChevronRight className="h-4 w-4 text-gray-400" />
+            </div>
+        </button>
+    );
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
 export default function Dashboard() {
     const queryClient = useQueryClient();
-
-    // Estado para controlar el Modal Transaccional
     const [selectedItem, setSelectedItem] = useState<InventoryItemWithRelations | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-
-    // Estado para controlar el Modal de Alta de Nueva Prenda
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<ItemStatus | 'todos'>('todos');
 
-    // 1. React Query maneja el fetching, loading state y caching
+    // React Query: fetching, loading state y caching
     const { data: items, isLoading, isError } = useQuery({
         queryKey: ['inventory_items'],
-        queryFn: inventoryService.getAllItems
+        queryFn: inventoryService.getAllItems,
     });
 
-    // 2. Suscripción en Tiempo Real de Supabase
+    // Supabase Realtime: invalida caché ante cualquier cambio en inventory_items
     useEffect(() => {
         const channel = supabase
             .channel('schema-db-changes')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'inventory_items'
-                },
-                (payload) => {
-                    console.log('Cambio detectado en Supabase Realtime:', payload);
-                    // Invalidamos la caché, lo cual fuerza a useQuery a hacer refetch en background automático
-                    queryClient.invalidateQueries({ queryKey: ['inventory_items'] });
-                }
-            )
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['inventory_items'] });
+            })
             .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        return () => { supabase.removeChannel(channel); };
     }, [queryClient]);
 
-    if (isLoading) return <div>Cargando inventario maestro...</div>;
-    if (isError) return <div>Error cargando inventario.</div>;
+    const openItem = (item: InventoryItemWithRelations) => {
+        setSelectedItem(item);
+        setIsModalOpen(true);
+    };
+
+    // Aplicar filtro de estado
+    const filtered = statusFilter === 'todos'
+        ? items
+        : items?.filter(i => i.status === statusFilter);
+
+    // Contadores por estado (para las pills de filtro)
+    const counts = items?.reduce<Record<string, number>>((acc, i) => {
+        acc[i.status] = (acc[i.status] ?? 0) + 1;
+        return acc;
+    }, {}) ?? {};
+
+    if (isLoading) return (
+        <div className="flex items-center justify-center h-48 text-gray-400 animate-pulse">
+            Cargando inventario...
+        </div>
+    );
+    if (isError) return (
+        <div className="flex items-center justify-center h-48 text-red-500">
+            Error al cargar el inventario.
+        </div>
+    );
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
+            {/* ── Header ─────────────────────────────────────────────── */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Inventario Global</h1>
-                    <p className="text-sm text-gray-500">Administración de existencias y estatus en tiempo real.</p>
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+                        Inventario
+                    </h1>
+                    <p className="text-xs sm:text-sm text-gray-500">
+                        {items?.length ?? 0} prendas · tiempo real
+                    </p>
                 </div>
                 <RoleGuard allowed={['socio', 'superadmin']}>
-                    <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
+                    <Button onClick={() => setIsAddModalOpen(true)} size="sm" className="gap-1.5">
                         <Plus className="h-4 w-4" />
-                        Agregar Prenda
+                        <span className="hidden sm:inline">Agregar Prenda</span>
+                        <span className="sm:hidden">Agregar</span>
                     </Button>
                 </RoleGuard>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Listado de Prendas</CardTitle>
+            {/* ── Filtros de estado (pills horizontales con scroll) ──── */}
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
+                {STATUS_FILTERS.map(({ label, value }) => {
+                    const count = value === 'todos' ? (items?.length ?? 0) : (counts[value] ?? 0);
+                    const isActive = statusFilter === value;
+                    return (
+                        <button
+                            key={value}
+                            onClick={() => setStatusFilter(value)}
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                                isActive
+                                    ? 'bg-gray-900 text-white border-gray-900'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                            }`}
+                        >
+                            {label}
+                            <span className={`text-[10px] ${isActive ? 'opacity-70' : 'text-gray-400'}`}>
+                                {count}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* ── Vista MÓVIL: tarjetas apilables ──────────────────── */}
+            <div className="sm:hidden space-y-2">
+                {filtered?.map(item => (
+                    <ItemCard key={item.id} item={item} onPress={() => openItem(item)} />
+                ))}
+                {filtered?.length === 0 && (
+                    <div className="text-center py-12 text-gray-400">
+                        No hay prendas con ese estatus.
+                    </div>
+                )}
+            </div>
+
+            {/* ── Vista DESKTOP: tabla ──────────────────────────────── */}
+            <Card className="hidden sm:block">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Listado de Prendas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {/* Diseño optimizado con shadcn/ui Table */}
                     <div className="rounded-md border">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-[100px]">ID</TableHead>
+                                    <TableHead className="w-[80px]">ID</TableHead>
                                     <TableHead>Producto</TableHead>
                                     <TableHead>Marca</TableHead>
                                     <TableHead>Talla</TableHead>
@@ -98,22 +209,19 @@ export default function Dashboard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {items?.map((item: InventoryItemWithRelations) => (
+                                {filtered?.map((item: InventoryItemWithRelations) => (
                                     <TableRow
                                         key={item.id}
                                         className="cursor-pointer hover:bg-gray-50"
-                                        onClick={() => {
-                                            setSelectedItem(item);
-                                            setIsModalOpen(true);
-                                        }}
+                                        onClick={() => openItem(item)}
                                     >
-                                        <TableCell className="font-medium">#{item.id}</TableCell>
-                                        <TableCell>{item.products?.name}</TableCell>
+                                        <TableCell className="font-medium text-gray-400">#{item.id}</TableCell>
+                                        <TableCell className="font-medium">{item.products?.name}</TableCell>
                                         <TableCell>{item.products?.brands?.name}</TableCell>
                                         <TableCell className="uppercase">{item.size}</TableCell>
                                         <TableCell className="capitalize">{item.color}</TableCell>
                                         <TableCell>
-                                            <Badge className={statusColorMap[item.status] || 'bg-gray-100 text-gray-800'}>
+                                            <Badge className={statusColorMap[item.status] ?? 'bg-gray-100 text-gray-800'}>
                                                 {item.status.toUpperCase()}
                                             </Badge>
                                         </TableCell>
@@ -125,11 +233,10 @@ export default function Dashboard() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
-
-                                {items?.length === 0 && (
+                                {filtered?.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center">
-                                            No hay artículos físicos en el almacén.
+                                        <TableCell colSpan={7} className="h-24 text-center text-gray-400">
+                                            No hay artículos con ese estatus.
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -139,14 +246,12 @@ export default function Dashboard() {
                 </CardContent>
             </Card>
 
-            {/* Modal de Transacción de Estado */}
+            {/* ── Modales ───────────────────────────────────────────── */}
             <TransactionModal
                 item={selectedItem}
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
             />
-
-            {/* Modal de Alta de Nueva Prenda */}
             <AddItemModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
