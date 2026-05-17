@@ -5,6 +5,7 @@ import { inventoryService } from '../services/inventory';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { TransactionModal } from '../components/inventory/TransactionModal';
 
 // Utilidad para extraer el color del status
 const statusColorMap: Record<string, string> = {
@@ -16,6 +17,10 @@ const statusColorMap: Record<string, string> = {
 
 export default function Dashboard() {
     const queryClient = useQueryClient();
+
+    // Estado para controlar el Modal Transaccional
+    const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // 1. React Query maneja el fetching, loading state y caching
     const { data: items, isLoading, isError } = useQuery({
@@ -78,7 +83,14 @@ export default function Dashboard() {
                             </TableHeader>
                             <TableBody>
                                 {items?.map((item: any) => (
-                                    <TableRow key={item.id} className="cursor-pointer hover:bg-gray-50">
+                                    <TableRow 
+                                        key={item.id} 
+                                        className="cursor-pointer hover:bg-gray-50"
+                                        onClick={() => {
+                                            setSelectedItem(item);
+                                            setIsModalOpen(true);
+                                        }}
+                                    >
                                         <TableCell className="font-medium">#{item.id}</TableCell>
                                         <TableCell>{item.products?.name}</TableCell>
                                         <TableCell>{item.products?.brands?.name}</TableCell>
@@ -110,6 +122,13 @@ export default function Dashboard() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Modal de Transacción incrustado */}
+            <TransactionModal 
+                item={selectedItem} 
+                isOpen={isModalOpen} 
+                onClose={() => setIsModalOpen(false)} 
+            />
         </div>
     );
 }
