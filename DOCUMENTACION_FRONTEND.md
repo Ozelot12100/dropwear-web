@@ -60,6 +60,10 @@ src/
 4. **Dashboard y Modo Tiempo Real:**
    - La página `Dashboard.tsx` ya se conecta vía `inventoryService.getAllItems()` usando **React Query**.
    - Integra la escucha `supabase.channel()` que intercepta eventos Postgres; al detectar un cambio de estado en el inventario de otra sucursal, manda un evento a React Query para invalidar la caché e hidratar la lista reactivamente sin romper el DOM.
+5. **UX/UI Transaccional de Inventario:**
+   - Implementado Modal interactivo (`TransactionModal.tsx`). Cumple regla de negocio obligando a capturar el precio (`price_sold`) si un empleado marca la prenda como "vendido".
+6. **Identidad Visual Corporativa:**
+   - Inyección del Branding (logo DropWear) en pantallas clave como `Login.tsx` y `Navbar.tsx`.
 
 ---
 
@@ -67,10 +71,9 @@ src/
 
 Esta es su área de trabajo. Los siguientes son los módulos indispensables requeridos para la conclusión del MVP que nos faltan desarrollar:
 
-### 1. UX/UI Transaccional de Inventario (Prioridad Alta)
-- **Necesidad:** En este momento, el `Dashboard.tsx` solo lee la tabla. Necesitamos la interfaz para mutar.
-- **Desarrollo:** Diseñar un Modal (`Dialog` o `Sheet` de shadcn) que se levante al dar click sobre una fila.
-- **Regla de negocio:** Si un socio cambia el estatus de `"disponible"` a `"vendido"`, el frontend debe **obligatoriamente** renderizar un `Input` numérico exigiendo el **Precio Cobrado** (`price_sold`), pasarlo como parámetro al backend (ya existe el método `updateItemStatus` en el service) para guardar el log.
+### 1. Funcionalidad: Agregar Nueva Mercancía (Prioridad Crítica)
+- **Necesidad:** Interfaz gráfica para que los administradores y socios puedan dar de alta un producto físico nuevo.
+- **Desarrollo:** Formulario/Modal que consuma catálogos dinámicamente ("¿Qué producto está ingresando?") y permita registrar Talla y Color en `inventory_items` con estado por defecto "disponible".
 
 ### 2. Panel de CRUD Base (Catálogos)
 - **Necesidad:** Interfaz gráfica para que los administradores puedan dar de alta elementos nuevos (Prendas).
