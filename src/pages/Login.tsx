@@ -20,16 +20,26 @@ export default function Login() {
         setLoading(true);
         setError(null);
 
-        const { error: authError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        try {
+            const cleanEmail = email.trim(); // Importante para móviles (espacios automáticos)
+            
+            const { error: authError } = await supabase.auth.signInWithPassword({
+                email: cleanEmail,
+                password,
+            });
 
-        if (authError) {
-            setError('Credenciales inválidas. Por favor verifica tu correo y contraseña.');
+            if (authError) {
+                setError('Credenciales inválidas. Por favor verifica tu correo y contraseña.');
+                setLoading(false);
+            } 
+            // Si es exitoso, App.tsx se encargará de redirigir a '/' gracias
+            // a la actualización del AuthContext y onAuthStateChange.
+            // Si forzamos navigate('/') aquí crearemos una condición de carrera
+            // donde PrivateRoute ve (session == null) y rebota a /login.
+        } catch (err: any) {
+            console.error("Error inesperado en login:", err);
+            setError('Error de conexión o configuración (revisa si tienes navegación privada/bloqueo de cookies activo).');
             setLoading(false);
-        } else {
-            navigate('/', { replace: true });
         }
     };
 
