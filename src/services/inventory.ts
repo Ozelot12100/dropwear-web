@@ -96,5 +96,56 @@ export const inventoryService = {
         }
 
         return true;
-    }
+    },
+
+    /**
+     * Da de alta un artículo físico nuevo en el inventario.
+     * Por regla de negocio: status por defecto es 'disponible'.
+     * Siempre inserta el log de auditoría con action = 'creacion'.
+     */
+    async addItem({
+        productId,
+        size,
+        color,
+        userId,
+    }: {
+        productId: number;
+        size: string;
+        color: string;
+        userId: string;
+    }) {
+        // 1. Insertar el ítem físico (status 'disponible' por default del esquema)
+        const { data: newItem, error: insertError } = await supabase
+            .from('inventory_items')
+            .insert({
+                product_id: productId,
+                size: size.trim().toUpperCase(),
+                color: color.trim().toLowerCase(),
+                updated_by: userId,
+            })
+            .select('id')
+            .single();
+
+        if (insertError) throw insertError;
+
+        // 2. Registrar el evento de creación en la bitácora (inmutable)
+        const { error: logError } = await supabase
+            .from('inventory_logs')
+            .insert({
+                item_id: newItem.id,
+                partner_id: userId,
+                action: 'creacion',
+                previous_status: null,
+                new_status: 'disponible',
+                notes: null,
+            });
+
+        if (logError) {
+            console.error('Error al registrar log de creación:', logError);
+            throw new Error('Prenda agregada, pero falló el registro en la bitácora.');
+        }
+
+        return newItem;
+    },
 };
+

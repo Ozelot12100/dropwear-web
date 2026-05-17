@@ -3,11 +3,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { inventoryService } from '../services/inventory';
 import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { TransactionModal } from '../components/inventory/TransactionModal';
+import { AddItemModal } from '../components/inventory/AddItemModal';
+import { RoleGuard } from '../components/layout/RoleGuard';
+import { Plus } from 'lucide-react';
 
-// Utilidad para extraer el color del status
+
 const statusColorMap: Record<string, string> = {
     disponible: 'bg-green-100 text-green-800 hover:bg-green-100',
     apartado: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
@@ -21,6 +25,9 @@ export default function Dashboard() {
     // Estado para controlar el Modal Transaccional
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Estado para controlar el Modal de Alta de Nueva Prenda
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     // 1. React Query maneja el fetching, loading state y caching
     const { data: items, isLoading, isError } = useQuery({
@@ -57,9 +64,17 @@ export default function Dashboard() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Inventario Global</h1>
-                <p className="text-sm text-gray-500">Administración de existencias y estatus en tiempo real.</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Inventario Global</h1>
+                    <p className="text-sm text-gray-500">Administración de existencias y estatus en tiempo real.</p>
+                </div>
+                <RoleGuard allowed={['socio', 'superadmin']}>
+                    <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Agregar Prenda
+                    </Button>
+                </RoleGuard>
             </div>
 
             <Card>
@@ -123,11 +138,17 @@ export default function Dashboard() {
                 </CardContent>
             </Card>
 
-            {/* Modal de Transacción incrustado */}
+            {/* Modal de Transacción de Estado */}
             <TransactionModal
                 item={selectedItem}
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
+            />
+
+            {/* Modal de Alta de Nueva Prenda */}
+            <AddItemModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
             />
         </div>
     );
