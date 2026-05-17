@@ -29,11 +29,12 @@ export default function Login() {
             if (authError) {
                 setError('Credenciales inválidas. Por favor verifica tu correo y contraseña.');
                 setLoading(false);
+            } else {
+                // Éxito: En vez de un `navigate` de React que causa rebotes, 
+                // hacemos un salto nativo para limpiar contextos y forzar un montaje limpio.
+                // Esto evade problemas de Safari/móviles pausando eventos reactivos.
+                window.location.href = '/';
             }
-            // Si es exitoso, App.tsx se encargará de redirigir a '/' gracias
-            // a la actualización del AuthContext y onAuthStateChange.
-            // Si forzamos navigate('/') aquí crearemos una condición de carrera
-            // donde PrivateRoute ve (session == null) y rebota a /login.
         } catch (err: any) {
             console.error("Error inesperado en login:", err);
             setError('Error de conexión o configuración (revisa si tienes navegación privada/bloqueo de cookies activo).');
