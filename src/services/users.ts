@@ -84,7 +84,26 @@ export const usersService = {
         return data;
     },
 
-    // 5. Actualizar el nombre completo del propio usuario (no requiere Edge Function por RLS)
+    // 5. Actualizar el rol de un usuario (requiere Edge Function por verificación de seguridad superadmin)
+    async updateUserRole(targetUserId: string, newRole: string): Promise<{ message: string }> {
+        const { data, error } = await supabase.functions.invoke('update-user-role', {
+            body: { target_user_id: targetUserId, new_role: newRole }
+        });
+
+        if (error) {
+            console.error('Error invocando Edge Function update-user-role:', error);
+            throw new Error(error.message || 'Error de conexión con el servidor.');
+        }
+
+        if (data?.error) {
+            console.error('La Edge Function retornó un error controlado:', data.error);
+            throw new Error(data.error);
+        }
+
+        return data;
+    },
+
+    // 6. Actualizar el nombre completo del propio usuario (no requiere Edge Function por RLS)
     async updateProfileName(userId: string, newName: string): Promise<void> {
         const { error } = await (supabase as any)
             .from('user_profiles')

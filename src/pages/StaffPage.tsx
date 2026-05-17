@@ -7,7 +7,7 @@ import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { UserPlus, ShieldAlert, Users, Key, UserX, UserCheck, AlertTriangle } from 'lucide-react';
+import { UserPlus, ShieldAlert, Users, Key, UserX, UserCheck, AlertTriangle, Shield } from 'lucide-react';
 import { useAuth } from '../hooks';
 
 export default function StaffPage() {
@@ -32,6 +32,13 @@ export default function StaffPage() {
     const [banAction, setBanAction] = useState<'ban'|'unban'>('ban');
     const [banError, setBanError] = useState('');
     const [isBanning, setIsBanning] = useState(false);
+
+    // Estado para el modal de Cambio de Rol
+    const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+    const [userToChangeRole, setUserToChangeRole] = useState<UserProfile | null>(null);
+    const [newRole, setNewRole] = useState<UserRole>('vendedor');
+    const [roleError, setRoleError] = useState('');
+    const [isChangingRole, setIsChangingRole] = useState(false);
 
     const { user: currentUser } = useAuth();
 
@@ -161,6 +168,25 @@ export default function StaffPage() {
             setBanError(err.message || 'Error al cambiar estado del usuario');
         } finally {
             setIsBanning(false);
+        }
+    };
+
+    const handleChangeRole = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setRoleError('');
+        if (!userToChangeRole) return;
+
+        setIsChangingRole(true);
+        try {
+            await usersService.updateUserRole(userToChangeRole.id, newRole);
+            await loadUsers();
+            setIsRoleModalOpen(false);
+            setUserToChangeRole(null);
+            // Sin usar alert, feedback rápido en tabla o cerrando modal
+        } catch (err: any) {
+            setRoleError(err.message || 'Error al cambiar rol');
+        } finally {
+            setIsChangingRole(false);
         }
     };
 
@@ -391,6 +417,64 @@ export default function StaffPage() {
                         </form>
                     </DialogContent>
                 </Dialog>
+
+                {/* Modal para Cambiar Rol */}
+                <Dialog open={isRoleModalOpen} onOpenChange={setIsRoleModalOpen}>
+                    <DialogContent className="sm:max-w-md bg-white">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl flex items-center gap-2">
+                                <Shield className="w-5 h-5 text-indigo-600" />
+                                Cambiar Rol de Usuario
+                            </DialogTitle>
+                        </DialogHeader>
+
+                        {roleError && (
+                            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm flex items-center gap-2">
+                                <ShieldAlert className="w-4 h-4 shrink-0" />
+                                <span className="font-medium">{roleError}</span>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleChangeRole} className="space-y-4 py-4">
+                            <p className="text-sm text-gray-700">
+                                Selecciona el nuevo rol para <strong>{userToChangeRole?.full_name}</strong>.
+                            </p>
+                            <div className="space-y-2">
+                                <Label htmlFor="new_role">Nuevo Rol</Label>
+                                <select
+                                    id="new_role"
+                                    className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={newRole}
+                                    onChange={(e) => setNewRole(e.target.value as UserRole)}
+                                    required
+                                >
+                                    <option value="socio">Socio (Operaciones)</option>
+                                    <option value="vendedor">Vendedor (Limitado)</option>
+                                    <option value="repartidor">Repartidor (Entregas)</option>
+                                    <option value="contador">Contador (Lectura)</option>
+                                    <option value="superadmin">Super Administrador</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-3 justify-end mt-6">
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    onClick={() => setIsRoleModalOpen(false)}
+                                    disabled={isChangingRole}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button 
+                                    type="submit" 
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white" 
+                                    disabled={isChangingRole}
+                                >
+                                    {isChangingRole ? 'Actualizando...' : 'Guardar Cambios'}
+                                </Button>
+                            </div>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             <div className="border rounded-xl bg-white shadow-sm overflow-hidden">
@@ -460,20 +544,36 @@ export default function StaffPage() {
                                             </Button>
 
                                             {currentUser?.id !== user.id && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => {
-                                                        setUserToBan(user);
-                                                        setBanAction(isActive ? 'ban' : 'unban');
-                                                        setIsBanModalOpen(true);
-                                                        setBanError('');
-                                                    }}
-                                                    className={isActive ? "text-gray-500 hover:text-red-600 hover:bg-red-50" : "text-gray-500 hover:text-green-600 hover:bg-green-50"}
-                                                    title={isActive ? "Bloquear acceso" : "Desbloquear acceso"}
-                                                >
-                                                    {isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                                                </Button>
+                                                <>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setUserToChangeRole(user);
+                                                            setNewRole(user.role);
+                                                            setIsRoleModalOpen(true);
+                                                            setRoleError('');
+                                                        }}
+                                                        className="text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
+                                                        title="Cambiar Rol"
+                                                    >
+                                                        <Shield className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setUserToBan(user);
+                                                            setBanAction(isActive ? 'ban' : 'unban');
+                                                            setIsBanModalOpen(true);
+                                                            setBanError('');
+                                                        }}
+                                                        className={isActive ? "text-gray-500 hover:text-red-600 hover:bg-red-50" : "text-gray-500 hover:text-green-600 hover:bg-green-50"}
+                                                        title={isActive ? "Bloquear acceso" : "Desbloquear acceso"}
+                                                    >
+                                                        {isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                                    </Button>
+                                                </>
                                             )}
                                         </div>
                                     </TableCell>
