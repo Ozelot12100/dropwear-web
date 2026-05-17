@@ -33,7 +33,7 @@ export default function ProfilePage() {
         try {
             setIsSaving(true);
             setMessage(null);
-            await usersService.updateProfileName(user.id, newName.trim());
+            await usersService.updateProfileName(newName.trim());
             await refreshProfile();
             setIsEditingName(false);
             setMessage({ text: 'Nombre actualizado correctamente.', type: 'success' });
