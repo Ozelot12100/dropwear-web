@@ -83,8 +83,8 @@ export default function Dashboard() {
                             </TableHeader>
                             <TableBody>
                                 {items?.map((item: any) => (
-                                    <TableRow 
-                                        key={item.id} 
+                                    <TableRow
+                                        key={item.id}
                                         className="cursor-pointer hover:bg-gray-50"
                                         onClick={() => {
                                             setSelectedItem(item);
@@ -124,10 +124,10 @@ export default function Dashboard() {
             </Card>
 
             {/* Modal de Transacción incrustado */}
-            <TransactionModal 
-                item={selectedItem} 
-                isOpen={isModalOpen} 
-                onClose={() => setIsModalOpen(false)} 
+            <TransactionModal
+                item={selectedItem}
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
             />
         </div>
     );
