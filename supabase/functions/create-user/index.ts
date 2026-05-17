@@ -21,11 +21,14 @@ Deno.serve(async (req) => {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      { 
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+      }
     )
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
-    if (userError || !user) throw new Error('Token inválido o expirado')
+    if (userError || !user) throw new Error(`Token inválido o expirado: ${userError?.message || 'Desconocido'}`)
 
     // Verificar si el usuario que llama a la función es realmente un 'superadmin'
     const { data: profile } = await supabaseClient
@@ -37,7 +40,7 @@ Deno.serve(async (req) => {
     if (profile?.role !== 'superadmin') {
       return new Response(JSON.stringify({ error: 'Permisos insuficientes. Solo los administradores pueden crear usuarios.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 403,
+        status: 200,
       })
     }
 
@@ -88,9 +91,9 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error.message || 'Error desconocido' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
+      status: 200,
     })
   }
 })
