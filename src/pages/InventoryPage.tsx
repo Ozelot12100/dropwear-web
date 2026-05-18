@@ -13,32 +13,34 @@ import { TransactionModal } from '../components/inventory/TransactionModal';
 import { AddItemModal } from '../components/inventory/AddItemModal';
 import { EditItemModal } from '../components/inventory/EditItemModal';
 import { RoleGuard } from '../components/layout/RoleGuard';
-import { Plus, ChevronRight, Search, X, Edit2 } from 'lucide-react';
-
+import { Plus, ChevronRight, Search, X, Edit2, Filter } from 'lucide-react';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetClose } from '../components/ui/sheet';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Label } from '../components/ui/label';
 
 // ── Colores por estado ────────────────────────────────────────────────────────
 const statusColorMap: Record<string, string> = {
     disponible: 'bg-green-100 text-green-800 hover:bg-green-100',
-    apartado:   'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
-    vendido:    'bg-indigo-100 text-indigo-800 hover:bg-indigo-100',
-    devuelto:   'bg-red-100 text-red-800 hover:bg-red-100',
+    apartado: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
+    vendido: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100',
+    devuelto: 'bg-red-100 text-red-800 hover:bg-red-100',
 };
 
 // Indicador de color del borde izquierdo de la tarjeta según estado
 const statusBorderMap: Record<string, string> = {
     disponible: 'border-l-green-400',
-    apartado:   'border-l-yellow-400',
-    vendido:    'border-l-indigo-400',
-    devuelto:   'border-l-red-400',
+    apartado: 'border-l-yellow-400',
+    vendido: 'border-l-indigo-400',
+    devuelto: 'border-l-red-400',
 };
 
 // ── Filtros disponibles ───────────────────────────────────────────────────────
 const STATUS_FILTERS: { label: string; value: ItemStatus | 'todos' }[] = [
-    { label: 'Todos',       value: 'todos' },
-    { label: 'Disponible',  value: 'disponible' },
-    { label: 'Apartado',    value: 'apartado' },
-    { label: 'Vendido',     value: 'vendido' },
-    { label: 'Devuelto',    value: 'devuelto' },
+    { label: 'Todos', value: 'todos' },
+    { label: 'Disponible', value: 'disponible' },
+    { label: 'Apartado', value: 'apartado' },
+    { label: 'Vendido', value: 'vendido' },
+    { label: 'Devuelto', value: 'devuelto' },
 ];
 
 // ── Tarjeta de ítem para móvil ───────────────────────────────────────────────
@@ -78,7 +80,7 @@ function ItemCard({
 
             {/* Acciones laterales: Editar + Precio y Flecha */}
             <div className="flex items-center gap-3 ml-2 shrink-0">
-                <button 
+                <button
                     onClick={onEdit}
                     className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-full transition-colors active:scale-95"
                     aria-label="Editar"
@@ -141,6 +143,16 @@ export default function InventoryPage() {
     const [statusFilter, setStatusFilter] = useState<ItemStatus | 'todos'>('todos');
     const [searchRaw, setSearchRaw] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [advancedFilters, setAdvancedFilters] = useState({
+        brand: 'todas',
+        category: 'todas',
+        size: 'todas'
+    });
+
+    // Contador de filtros activos
+    const activeFiltersCount = (advancedFilters.brand !== 'todas' ? 1 : 0) +
+        (advancedFilters.category !== 'todas' ? 1 : 0) +
+        (advancedFilters.size !== 'todas' ? 1 : 0);
 
     // Debounce: espera 250ms tras el último keystroke antes de filtrar
     useEffect(() => {
@@ -175,7 +187,27 @@ export default function InventoryPage() {
         setIsEditModalOpen(true);
     };
 
-    // Filtro combinado: estado + búsqueda de texto
+    // Opciones dinámicas para los filtros (se extraen de los items disponibles)
+    const dynamicOptions = useMemo(() => {
+        if (!items) return { brands: [], categories: [], sizes: [] };
+        const b = new Set<string>();
+        const c = new Set<string>();
+        const s = new Set<string>();
+
+        items.forEach(i => {
+            if (i.products?.brands?.name) b.add(i.products.brands.name);
+            if (i.products?.categories?.name) c.add(i.products.categories.name);
+            if (i.size) s.add(i.size.toUpperCase());
+        });
+
+        return {
+            brands: Array.from(b).sort(),
+            categories: Array.from(c).sort(),
+            sizes: Array.from(s).sort()
+        };
+    }, [items]);
+
+    // Filtro combinado: estado + búsqueda de texto + avanzados
     // useMemo evita recalcular en renders que no cambian los datos o los filtros
     const filtered = useMemo((): InventoryItemWithRelations[] => {
         let result: InventoryItemWithRelations[] = items ?? [];
@@ -185,13 +217,24 @@ export default function InventoryPage() {
             result = result.filter(i => i.status === statusFilter);
         }
 
-        // 2. Filtro por texto (producto, marca, color, talla)
+        // 2. Filtros Avanzados
+        if (advancedFilters.brand !== 'todas') {
+            result = result.filter(i => i.products?.brands?.name === advancedFilters.brand);
+        }
+        if (advancedFilters.category !== 'todas') {
+            result = result.filter(i => i.products?.categories?.name === advancedFilters.category);
+        }
+        if (advancedFilters.size !== 'todas') {
+            result = result.filter(i => i.size.toUpperCase() === advancedFilters.size);
+        }
+
+        // 3. Filtro por texto (producto, marca, color, talla)
         if (searchQuery) {
             result = result.filter(i => {
-                const name  = i.products?.name?.toLowerCase() ?? '';
+                const name = i.products?.name?.toLowerCase() ?? '';
                 const brand = i.products?.brands?.name?.toLowerCase() ?? '';
                 const color = i.color.toLowerCase();
-                const size  = i.size.toLowerCase();
+                const size = i.size.toLowerCase();
                 return (
                     name.includes(searchQuery) ||
                     brand.includes(searchQuery) ||
@@ -241,26 +284,117 @@ export default function InventoryPage() {
                 </RoleGuard>
             </div>
 
-            {/* ── Búsqueda ─────────────────────────────────────────── */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                <Input
-                    type="search"
-                    placeholder="Buscar por producto, marca, talla o color..."
-                    value={searchRaw}
-                    onChange={e => setSearchRaw(e.target.value)}
-                    className="pl-9 pr-9 h-11 text-base sm:text-sm sm:h-9"
-                    autoComplete="off"
-                />
-                {searchRaw && (
-                    <button
-                        onClick={() => setSearchRaw('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        aria-label="Limpiar búsqueda"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                )}
+            {/* ── Búsqueda y Filtros ─────────────────────────────────────────── */}
+            <div className="flex gap-2">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <Input
+                        type="search"
+                        placeholder="Buscar por producto, marca, talla o color..."
+                        value={searchRaw}
+                        onChange={e => setSearchRaw(e.target.value)}
+                        className="pl-9 pr-9 h-11 text-base sm:text-sm sm:h-9"
+                        autoComplete="off"
+                    />
+                    {searchRaw && (
+                        <button
+                            onClick={() => setSearchRaw('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            aria-label="Limpiar búsqueda"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+
+                <Sheet>
+                    <SheetTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-11 sm:h-9 px-3 shrink-0 relative">
+                        <Filter className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Filtros</span>
+                        {activeFiltersCount > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
+                                {activeFiltersCount}
+                            </span>
+                        )}
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-full sm:w-[400px] overflow-y-auto">
+                        <SheetHeader className="mb-6">
+                            <SheetTitle>Filtros Avanzados</SheetTitle>
+                            <SheetDescription>
+                                Refina tu búsqueda en el inventario actual.
+                            </SheetDescription>
+                        </SheetHeader>
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <Label>Marca</Label>
+                                <Select
+                                    value={advancedFilters.brand}
+                                    onValueChange={(val) => setAdvancedFilters(prev => ({ ...prev, brand: val || 'todas' }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Todas las marcas" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="todas">Todas las marcas</SelectItem>
+                                        {dynamicOptions.brands.map(b => (
+                                            <SelectItem key={b} value={b}>{b}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Categoría</Label>
+                                <Select
+                                    value={advancedFilters.category}
+                                    onValueChange={(val) => setAdvancedFilters(prev => ({ ...prev, category: val || 'todas' }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Todas las categorías" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="todas">Todas las categorías</SelectItem>
+                                        {dynamicOptions.categories.map(c => (
+                                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Talla</Label>
+                                <Select
+                                    value={advancedFilters.size}
+                                    onValueChange={(val) => setAdvancedFilters(prev => ({ ...prev, size: val || 'todas' }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Todas las tallas" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="todas">Todas las tallas</SelectItem>
+                                        {dynamicOptions.sizes.map(s => (
+                                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <SheetFooter className="mt-8 gap-2 sm:gap-0">
+                            {activeFiltersCount > 0 && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setAdvancedFilters({ brand: 'todas', category: 'todas', size: 'todas' })}
+                                >
+                                    Limpiar
+                                </Button>
+                            )}
+                            <SheetClose className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full sm:w-auto">
+                                Aplicar Filtros
+                            </SheetClose>
+                        </SheetFooter>
+                    </SheetContent>
+                </Sheet>
             </div>
 
             {/* ── Filtros de estado (pills horizontales con scroll) ──── */}
@@ -272,11 +406,10 @@ export default function InventoryPage() {
                         <button
                             key={value}
                             onClick={() => setStatusFilter(value)}
-                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                                isActive
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${isActive
                                     ? 'bg-gray-900 text-white border-gray-900'
                                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-                            }`}
+                                }`}
                         >
                             {label}
                             <span className={`text-[10px] ${isActive ? 'opacity-70' : 'text-gray-400'}`}>
@@ -301,10 +434,10 @@ export default function InventoryPage() {
             {isLoading ? <MobileSkeletons /> : (
                 <div className="sm:hidden space-y-2">
                     {filtered.map(item => (
-                        <ItemCard 
-                            key={item.id} 
-                            item={item} 
-                            onPress={() => openItem(item)} 
+                        <ItemCard
+                            key={item.id}
+                            item={item}
+                            onPress={() => openItem(item)}
                             onEdit={() => openEditItem(item)}
                         />
                     ))}
@@ -361,21 +494,21 @@ export default function InventoryPage() {
                                                 : <span className="text-gray-600">${item.products?.base_price}</span>
                                             }
                                         </TableCell>                                          <TableCell className="text-right">
-                                              <button 
-                                                  onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      openEditItem(item);
-                                                  }}
-                                                  className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-full transition-colors active:scale-95"
-                                                  aria-label="Editar"
-                                              >
-                                                  <Edit2 className="h-4 w-4" />
-                                              </button>
-                                          </TableCell>                                    </TableRow>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openEditItem(item);
+                                                }}
+                                                className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-full transition-colors active:scale-95"
+                                                aria-label="Editar"
+                                            >
+                                                <Edit2 className="h-4 w-4" />
+                                            </button>
+                                        </TableCell>                                    </TableRow>
                                 ))}
                                 {filtered.length === 0 && (
                                     <TableRow>
-                                          <TableCell colSpan={8} className="h-24 text-center text-gray-400">
+                                        <TableCell colSpan={8} className="h-24 text-center text-gray-400">
                                             {searchQuery ? `Sin resultados para "${searchRaw}"` : 'No hay artículos con ese estatus.'}
                                         </TableCell>
                                     </TableRow>
