@@ -70,6 +70,7 @@ src/
 ### 4.3 Modales de Inventario
 - **`AddItemModal.tsx`:** Formulario para dar de alta prendas seleccionando producto del catálogo, talla y color. Todas las validaciones de campos están implementadas.
 - **`TransactionModal.tsx`:** Actualización de estatus de artículos. Obliga a capturar el `price_sold` si el estatus es `vendido`. Deshabilita opciones de estatus que ya tenga el artículo.
+- **`EditItemModal.tsx`:** Modal de modificación para corregir errores de dedo. Permite editar el producto, color y talla de un artículo específico, dejando rastro de la modificación en la bitácora ("actualizacion_estado").
 
 ### 4.4 Catálogos
 - `CatalogsPage.tsx` con gestión de `brands` (Marcas) y `categories` (Categorías) y `products` (Productos maestros).
