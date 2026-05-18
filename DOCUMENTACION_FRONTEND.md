@@ -78,6 +78,7 @@ src/
 
 ### 4.5 Bitácora de Operaciones
 - `LogsPage.tsx` que consume `inventory_logs` mostrando la trazabilidad de cada movimiento (quién, cuándo, qué prenda, qué acción).
+- **Filtros Avanzados (Sheet UI):** Menú lateral para filtrar la bitácora por un **Operador** en específico (generado dinámicamente según los usuarios que hayan registrado operaciones) y por **Rango de Tiempo** rápido (Hoy, Ayer, Esta Semana, Este Mes) utilizando `date-fns`.
 
 ### 4.6 Gestión de Personal (StaffPage) — Superadmin Only
 - Tabla de colaboradores con nombre, rol, fecha de ingreso e ID parcial.

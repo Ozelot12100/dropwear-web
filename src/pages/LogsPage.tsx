@@ -16,36 +16,36 @@ import { isToday, isYesterday, isThisWeek, isThisMonth, parseISO } from 'date-fn
 
 // ── Mapas de color y etiqueta ─────────────────────────────────────────────────
 const actionColorMap: Record<string, string> = {
-    creacion:            'bg-blue-100 text-blue-800',
-    actualizacion_estado:'bg-gray-100 text-gray-800',
-    venta:               'bg-green-100 text-green-800',
-    apartado:            'bg-yellow-100 text-yellow-800',
-    devolucion:          'bg-red-100 text-red-800',
+    creacion: 'bg-blue-100 text-blue-800',
+    actualizacion_estado: 'bg-gray-100 text-gray-800',
+    venta: 'bg-green-100 text-green-800',
+    apartado: 'bg-yellow-100 text-yellow-800',
+    devolucion: 'bg-red-100 text-red-800',
 };
 
 const actionLabelMap: Record<string, string> = {
-    creacion:            '🆕 Creación',
-    actualizacion_estado:'🔄 Actualización',
-    venta:               '💰 Venta',
-    apartado:            '📌 Apartado',
-    devolucion:          '↩️ Devolución',
+    creacion: '🆕 Creación',
+    actualizacion_estado: '🔄 Actualización',
+    venta: '💰 Venta',
+    apartado: '📌 Apartado',
+    devolucion: '↩️ Devolución',
 };
 
 const statusLabel: Record<string, string> = {
     disponible: 'Disponible',
-    apartado:   'Apartado',
-    vendido:    'Vendido',
-    devuelto:   'Devuelto',
+    apartado: 'Apartado',
+    vendido: 'Vendido',
+    devuelto: 'Devuelto',
 };
 
 // ── Pills de filtro por acción ────────────────────────────────────────────────
 const ACTION_FILTERS: { label: string; value: LogAction | 'todas' }[] = [
-    { label: 'Todas',         value: 'todas' },
-    { label: '💰 Ventas',     value: 'venta' },
-    { label: '📌 Apartados',  value: 'apartado' },
-    { label: '↩️ Devoluciones',value: 'devolucion' },
-    { label: '🆕 Altas',      value: 'creacion' },
-    { label: '🔄 Cambios',    value: 'actualizacion_estado' },
+    { label: 'Todas', value: 'todas' },
+    { label: '💰 Ventas', value: 'venta' },
+    { label: '📌 Apartados', value: 'apartado' },
+    { label: '↩️ Devoluciones', value: 'devolucion' },
+    { label: '🆕 Altas', value: 'creacion' },
+    { label: '🔄 Cambios', value: 'actualizacion_estado' },
 ];
 
 // Roles que pueden ver la columna de precio de venta
@@ -124,7 +124,7 @@ export default function LogsPage() {
             result = result.filter(l => {
                 if (!l.created_at) return false;
                 const date = parseISO(l.created_at);
-                switch(advancedFilters.dateRange) {
+                switch (advancedFilters.dateRange) {
                     case 'hoy': return isToday(date);
                     case 'ayer': return isYesterday(date);
                     case 'semana': return isThisWeek(date, { weekStartsOn: 1 });
@@ -225,11 +225,10 @@ export default function LogsPage() {
                                             <button
                                                 key={opt.value}
                                                 onClick={() => setAdvancedFilters(prev => ({ ...prev, dateRange: opt.value }))}
-                                                className={`px-3 py-2.5 rounded-lg text-sm transition-all sm:col-span-1 ${
-                                                    isSelected
+                                                className={`px-3 py-2.5 rounded-lg text-sm transition-all sm:col-span-1 ${isSelected
                                                         ? 'bg-indigo-600 text-white font-bold shadow-md ring-2 ring-indigo-600 ring-offset-1'
                                                         : 'bg-slate-100 text-slate-600 font-medium hover:bg-slate-200'
-                                                }`}
+                                                    }`}
                                             >
                                                 {opt.label}
                                             </button>
@@ -267,11 +266,10 @@ export default function LogsPage() {
                         <button
                             key={value}
                             onClick={() => setActionFilter(value)}
-                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                                isActive
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${isActive
                                     ? 'bg-gray-900 text-white border-gray-900'
                                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-                            }`}
+                                }`}
                         >
                             {label}
                             <span className={`text-[10px] ${isActive ? 'opacity-70' : 'text-gray-400'}`}>

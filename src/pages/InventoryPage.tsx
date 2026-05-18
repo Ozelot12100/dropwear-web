@@ -378,11 +378,10 @@ export default function InventoryPage() {
                                 <div className="flex flex-wrap gap-2">
                                     <button
                                         onClick={() => setAdvancedFilters(prev => ({ ...prev, size: 'todas' }))}
-                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                            advancedFilters.size === 'todas'
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${advancedFilters.size === 'todas'
                                                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
                                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
+                                            }`}
                                     >
                                         Todas
                                     </button>
@@ -392,11 +391,10 @@ export default function InventoryPage() {
                                             <button
                                                 key={s}
                                                 onClick={() => setAdvancedFilters(prev => ({ ...prev, size: s }))}
-                                                className={`px-4 py-2 rounded-lg text-sm font-bold uppercase transition-all ${
-                                                    isSelected
+                                                className={`px-4 py-2 rounded-lg text-sm font-bold uppercase transition-all ${isSelected
                                                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-2 ring-indigo-600 ring-offset-1'
                                                         : 'bg-white border border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50'
-                                                }`}
+                                                    }`}
                                             >
                                                 {s}
                                             </button>
@@ -433,8 +431,8 @@ export default function InventoryPage() {
                             key={value}
                             onClick={() => setStatusFilter(value)}
                             className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${isActive
-                                    ? 'bg-gray-900 text-white border-gray-900'
-                                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                                ? 'bg-gray-900 text-white border-gray-900'
+                                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
                                 }`}
                         >
                             {label}
