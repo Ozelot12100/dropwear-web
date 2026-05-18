@@ -11,8 +11,10 @@ import { Skeleton } from '../components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { TransactionModal } from '../components/inventory/TransactionModal';
 import { AddItemModal } from '../components/inventory/AddItemModal';
+import { EditItemModal } from '../components/inventory/EditItemModal';
 import { RoleGuard } from '../components/layout/RoleGuard';
-import { Plus, ChevronRight, Search, X } from 'lucide-react';
+import { Plus, ChevronRight, Search, X, Edit2 } from 'lucide-react';
+
 
 // ── Colores por estado ────────────────────────────────────────────────────────
 const statusColorMap: Record<string, string> = {
@@ -43,16 +45,19 @@ const STATUS_FILTERS: { label: string; value: ItemStatus | 'todos' }[] = [
 function ItemCard({
     item,
     onPress,
+    onEdit,
 }: {
     item: InventoryItemWithRelations;
     onPress: () => void;
+    onEdit: () => void;
 }) {
     return (
-        <button
-            onClick={onPress}
-            className={`w-full text-left bg-white border border-l-4 ${statusBorderMap[item.status] ?? 'border-l-gray-200'} rounded-lg p-4 flex items-center justify-between shadow-sm active:scale-[0.98] transition-transform`}
-        >
-            <div className="flex-1 min-w-0">
+        <div className={`w-full bg-white border border-l-4 ${statusBorderMap[item.status] ?? 'border-l-gray-200'} rounded-lg p-4 flex items-center justify-between shadow-sm transition-transform relative`}>
+            {/* Contenedor del contenido clicable para la transacción */}
+            <button
+                onClick={onPress}
+                className="flex-1 min-w-0 text-left active:scale-[0.98]"
+            >
                 {/* Línea 1: Producto + marca */}
                 <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold text-gray-900 truncate">{item.products?.name}</span>
@@ -60,7 +65,7 @@ function ItemCard({
                 </div>
 
                 {/* Línea 2: Talla + color + estado */}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap pr-2">
                     <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-mono uppercase">
                         {item.size}
                     </span>
@@ -69,16 +74,25 @@ function ItemCard({
                         {item.status.toUpperCase()}
                     </Badge>
                 </div>
-            </div>
+            </button>
 
-            {/* Precio + flecha */}
-            <div className="flex items-center gap-2 ml-3 shrink-0">
-                <span className={`text-sm font-bold ${item.status === 'vendido' ? 'text-green-700' : 'text-gray-700'}`}>
-                    ${item.status === 'vendido' ? item.price_sold : item.products?.base_price}
-                </span>
-                <ChevronRight className="h-4 w-4 text-gray-400" />
+            {/* Acciones laterales: Editar + Precio y Flecha */}
+            <div className="flex items-center gap-3 ml-2 shrink-0">
+                <button 
+                    onClick={onEdit}
+                    className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-full transition-colors active:scale-95"
+                    aria-label="Editar"
+                >
+                    <Edit2 className="h-4 w-4" />
+                </button>
+                <button onClick={onPress} className="flex items-center gap-2 active:scale-95">
+                    <span className={`text-sm font-bold ${item.status === 'vendido' ? 'text-green-700' : 'text-gray-700'}`}>
+                        ${item.status === 'vendido' ? item.price_sold : item.products?.base_price}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                </button>
             </div>
-        </button>
+        </div>
     );
 }
 
@@ -123,6 +137,7 @@ export default function InventoryPage() {
     const [selectedItem, setSelectedItem] = useState<InventoryItemWithRelations | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [statusFilter, setStatusFilter] = useState<ItemStatus | 'todos'>('todos');
     const [searchRaw, setSearchRaw] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -153,6 +168,11 @@ export default function InventoryPage() {
     const openItem = (item: InventoryItemWithRelations) => {
         setSelectedItem(item);
         setIsModalOpen(true);
+    };
+
+    const openEditItem = (item: InventoryItemWithRelations) => {
+        setSelectedItem(item);
+        setIsEditModalOpen(true);
     };
 
     // Filtro combinado: estado + búsqueda de texto
@@ -281,7 +301,12 @@ export default function InventoryPage() {
             {isLoading ? <MobileSkeletons /> : (
                 <div className="sm:hidden space-y-2">
                     {filtered.map(item => (
-                        <ItemCard key={item.id} item={item} onPress={() => openItem(item)} />
+                        <ItemCard 
+                            key={item.id} 
+                            item={item} 
+                            onPress={() => openItem(item)} 
+                            onEdit={() => openEditItem(item)}
+                        />
                     ))}
                     {filtered.length === 0 && (
                         <div className="text-center py-12 text-gray-400">
@@ -307,8 +332,7 @@ export default function InventoryPage() {
                                     <TableHead>Talla</TableHead>
                                     <TableHead>Color</TableHead>
                                     <TableHead>Estatus</TableHead>
-                                    <TableHead className="text-right">Precio Base / Venta</TableHead>
-                                </TableRow>
+                                    <TableHead className="text-right">Precio Base / Venta</TableHead>                                      <TableHead className="w-[60px]"></TableHead>                                </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {/* Skeleton mientras carga */}
@@ -336,12 +360,22 @@ export default function InventoryPage() {
                                                 ? <span className="font-bold text-green-700">${item.price_sold}</span>
                                                 : <span className="text-gray-600">${item.products?.base_price}</span>
                                             }
-                                        </TableCell>
-                                    </TableRow>
+                                        </TableCell>                                          <TableCell className="text-right">
+                                              <button 
+                                                  onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      openEditItem(item);
+                                                  }}
+                                                  className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-full transition-colors active:scale-95"
+                                                  aria-label="Editar"
+                                              >
+                                                  <Edit2 className="h-4 w-4" />
+                                              </button>
+                                          </TableCell>                                    </TableRow>
                                 ))}
                                 {filtered.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center text-gray-400">
+                                          <TableCell colSpan={8} className="h-24 text-center text-gray-400">
                                             {searchQuery ? `Sin resultados para "${searchRaw}"` : 'No hay artículos con ese estatus.'}
                                         </TableCell>
                                     </TableRow>
@@ -361,6 +395,11 @@ export default function InventoryPage() {
             <AddItemModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
+            />
+            <EditItemModal
+                item={selectedItem}
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
             />
         </div>
     );

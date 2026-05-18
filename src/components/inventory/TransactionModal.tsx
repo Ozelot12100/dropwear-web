@@ -72,7 +72,7 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
             if (!item) throw new Error('No hay prenda seleccionada.');
 
             // 3. Bomba de tiempo (Timeout) de 15 segundos
-            const timeoutPromise = new Promise<never>((_, reject) => 
+            const timeoutPromise = new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error("La operación tardó demasiado en responder (15s). Verifica tu conexión o recarga la página.")), 15000)
             );
 
