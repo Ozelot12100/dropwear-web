@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventory';
 import { catalogService } from '../../services/catalogs';
 import { useAuth } from '../../hooks';
+import { supabase } from '../../lib/supabase';
 import type { InventoryItemWithRelations } from '../../types';
 import {
     Dialog,
@@ -74,13 +75,23 @@ export function EditItemModal({ item, isOpen, onClose }: EditItemModalProps) {
             const colorError = validateColor(color);
             if (colorError) throw new Error(colorError);
 
-            await inventoryService.updateItemDetails({
+            // 1. "Despertador" Estricto: Forzar a Supabase a despertar su lock de sesión local
+            await supabase.auth.getSession();
+
+            // 2. Bomba de tiempo (Timeout) de 15 segundos para móviles
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("La operación tardó demasiado en responder (15s). Verifica tu conexión o recarga la página.")), 15000)
+            );
+
+            const updatePromise = inventoryService.updateItemDetails({
                 itemId: item.id,
                 productId: Number(productId),
                 size,
                 color: color.trim(),
                 userId: user.id,
             });
+
+            await Promise.race([updatePromise, timeoutPromise]);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['inventory_items'] });
@@ -108,7 +119,7 @@ export function EditItemModal({ item, isOpen, onClose }: EditItemModalProps) {
                     <DialogHeader>
                         <DialogTitle>Editar Prenda #{item.id}</DialogTitle>
                         <DialogDescription>
-                            Modifica los detalles físicos erróneos de la prenda. 
+                            Modifica los detalles físicos erróneos de la prenda.
                             Este cambio quedará registrado en la bitácora.
                         </DialogDescription>
                     </DialogHeader>
