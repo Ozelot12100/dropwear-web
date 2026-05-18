@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';
 import { inventoryService } from '../../services/inventory';
 import { useAuth } from '../../hooks';
 import type { ItemStatus, InventoryItemWithRelations } from '../../types';
@@ -49,12 +50,17 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
             if (!user) throw new Error('Usuario no autenticado');
             if (!selectedStatus) throw new Error('Selecciona un nuevo estatus');
 
+            // 1. "Despertador" Estricto: Forzar a Supabase a despertar su lock de sesión local
+            await supabase.auth.getSession();
+
             // No permitir cambiar al mismo estatus actual
             if (item && selectedStatus === item.status) {
                 throw new Error(`El artículo ya tiene el estatus "${selectedStatus}". Selecciona uno diferente.`);
             }
 
-            const parsedPrice = selectedStatus === 'vendido' ? parseFloat(priceSold) : null;
+            // 2. Control anti-comas para teclados nativos móviles
+            const safePriceSold = priceSold.replace(/,/g, '.');
+            const parsedPrice = selectedStatus === 'vendido' ? parseFloat(safePriceSold) : null;
             if (selectedStatus === 'vendido' && (isNaN(parsedPrice!) || parsedPrice! <= 0)) {
                 throw new Error('Ingresa un precio de venta válido (mayor a $0).');
             }
@@ -65,13 +71,20 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
 
             if (!item) throw new Error('No hay prenda seleccionada.');
 
-            await inventoryService.updateItemStatus({
+            // 3. Bomba de tiempo (Timeout) de 15 segundos
+            const timeoutPromise = new Promise<never>((_, reject) => 
+                setTimeout(() => reject(new Error("La operación tardó demasiado en responder (15s). Verifica tu conexión o recarga la página.")), 15000)
+            );
+
+            const updatePromise = inventoryService.updateItemStatus({
                 itemId: item.id,
                 newStatus: selectedStatus as ItemStatus,
                 priceSold: parsedPrice,
                 userId: user.id,
                 notes: notes.trim() || undefined,
             });
+
+            await Promise.race([updatePromise, timeoutPromise]);
         },
         onSuccess: () => {
             // Forzar recarga de los datos en background
