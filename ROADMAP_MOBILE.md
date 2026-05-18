@@ -1,32 +1,44 @@
-# Plan de Optimización Mobile para DropWear 📱
+# Roadmap de Desarrollo: DropWear (Móvil y Administración) 🚀
 
-Enfocado en potenciar la experiencia desde teléfonos móviles para el personal operativo, proponemos la siguiente hoja de ruta para el desarrollo futuro:
+Este documento detalla las funcionalidades pendientes para mejorar la experiencia operativa en dispositivos móviles, así como nuevas herramientas para la administración integral del negocio tanto en PC como en móvil.
 
-### 1. Soporte PWA (Progressive Web App)
-- **Concepto:** Configurar un `manifest.json` y Service Workers para permitir que DropWear sea "instalable" en la pantalla de inicio de Android/iOS.
-- **Beneficio:** Brinda una experiencia de aplicación nativa a pantalla completa, eliminando la barra del navegador y mejorando la percepción de rendimiento.
+## 1. Experiencia Móvil y Operativa 📱
 
-### 2. Lector de Códigos QR / Barras con la Cámara
-- **Concepto:** Integrar un botón en la vista de inventario que active la cámara del dispositivo móvil para escanear etiquetas de la ropa.
-- **Beneficio:** Agiliza masivamente la búsqueda de prendas, el ingreso de nuevo stock o la marca de un artículo como "Vendido".
+### 1.1 Soporte PWA (Progressive Web App)
+- **Concepto:** Configurar un `manifest.json` y Service Workers.
+- **Beneficio:** Permite instalar DropWear en la pantalla de inicio de Android/iOS como una app nativa a pantalla completa, ocultando la interfaz del navegador.
 
-### 3. Navegación Inferior (Bottom Tab Bar) — ✅ Implementado
-- **Concepto:** Ocultar el menú superior (Hamburger Menu) en pantallas móviles y reemplazarlo por una barra de navegación inferior con iconos fijos (Dashboard, Inventario, Escáner, Perfil).
-- **Estado Actual:** El componente `BottomNav.tsx` ya se integró exitosamente y se niveló con la autenticación RBAC para mostrar a los usuarios móviles las mismas 5 pestañas completas que en escritorio.
-- **Beneficio:** Mejora enormemente la ergonomía, ya que los pulgares del usuario alcanzan las opciones principales sin esfuerzo.
+### 1.2 Lector de Códigos QR / Barras
+- **Concepto:** Integrar la cámara del celular en la vista de inventario.
+- **Beneficio:** Agiliza masivamente la búsqueda de prendas, el ingreso de nuevo stock o la marca rápida de un artículo como "Vendido" / "Apartado".
 
-### 4. Optimización de Formularios para Pantallas Táctiles — 🔄 En progreso
-- **Concepto:** Actualizar los campos de formularios (`input`) y menús de opciones para aprovechar capacidades táctiles y teclados nativos.
-- **Acciones:**
-  - ✅ Reemplazar selectores de fecha complejos con **botones-píldora** rápidos amigables para pulgares (Implementado en `LogsPage` y filtros).
-  - ✅ Utilizar componentes nativos inferiroes (Bottom `<Sheet>` de shadcn/ui) en vez de Modales flotantes para filtros avanzados.
-  - ⏳ Usar `inputMode="decimal"` o `type="number"` para precios en la captura de ventas (despliega teclado numérico).
-  - ⏳ Gestos de deslizar (Swipe) para eliminar o editar registros rápidos en el inventario.
+### 1.3 Perfeccionamiento de Formularios Táctiles
+- **Pendiente:** Usar `inputMode="decimal"` o `type="number"` en los campos de precio y costo (despliega teclado numérico nativo al vender).
+- **Pendiente:** Integrar gestos de deslizar (*Swipe-to-action*) en las tarjetas de inventario para accesos directos de edición o cobro.
 
-### 5. Funcionalidad Pull-to-Refresh
-- **Concepto:** Permitir que los usuarios "jalen" la pantalla hacia abajo en el Dashboard o el Inventario para forzar la recarga de la información con `TanStack Query`.
-- **Beneficio:** Es el estándar moderno de la industria para refrescar datos en dispositivos táctiles.
+### 1.4 Pull-to-Refresh
+- **Concepto:** Permitir que el Staff "jale" la pantalla hacia abajo en el Dashboard o el Inventario para forzar la recarga de datos con TanStack Query.
 
-### 6. Paneles Deslizables (Bottom Sheets) para Filtros — ✅ Implementado
-- **Concepto:** Utilizar paneles inferiores/laterales optimizados para móviles en lugar de modales intrusivos para tareas densas como búsqueda cruzada.
-- **Estado Actual:** Integrado exitosamente en **Inventario** y **Bitácora (Logs)** usando `<Sheet>` de shadcn/ui. Permite una interacción gestual y táctil muy fluida, acomodando comboboxes y píldoras dinámicas que no rompen el teclado de iOS/Android.
+---
+
+## 2. Administración y Control del Negocio (PC y Gerencia) 💼
+
+### 2.1 Módulo de Corte de Caja (Arqueo) 💰
+- **Concepto:** Un sistema para aperturar caja con un fondo inicial y cerrarla al final del turno.
+- **Beneficio:** Permite cuadrar el efectivo/transferencias reales de la tienda física contra las acciones registradas en sistema, detectando sobrantes o faltantes.
+
+### 2.2 Panel de Analítica y Gráficas 📊
+- **Concepto:** Añadir gráficas visuales (ej. usando `Recharts`) en el Dashboard actual.
+- **Beneficio:** Visualizar curvas de ingresos semanales/mensuales, el top de marcas/categorías más vendidas y conocer los días con mayor flujo de clientes.
+
+### 2.3 Exportación de Reportes (Excel / CSV) 📥
+- **Concepto:** Agregar un botón de "Exportar a Excel" en las vistas de **Inventario** y **Bitácora (Logs)**.
+- **Beneficio:** Indispensable para llevar contabilidad externa, entregar reportes a socios o auditores y hacer respaldos.
+
+### 2.4 Control de Gastos (Egresos Operativos) 📉
+- **Concepto:** Una pequeña sección para registrar gastos hormiga o fijos (paquetería, limpieza, servicios, nómina).
+- **Beneficio:** Al cruzar los *Ingresos (Ventas)* menos el *Costo de las Prendas* y los *Gastos*, podrás ver la **Utilidad Neta Real** del negocio.
+
+### 2.5 Acciones Masivas (Batch Operations) 📦
+- **Concepto:** `Checkboxes` en la tabla de PC para seleccionar de 2 a 50 artículos a la vez.
+- **Beneficio:** Permite aplicar remates, devolver apartados a stock o marcar lotes enteros como vendidos en 1 solo clic, ahorrando horas de administración manual.
