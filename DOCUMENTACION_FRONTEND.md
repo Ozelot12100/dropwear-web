@@ -95,6 +95,13 @@ Todas las modales aplican validación en **dos capas**: atributos HTML (UX inmed
 | Agregar Prenda | Producto requerido · Talla requerida · Color solo letras mín. 3 chars (regex con acentos/ñ) · Contador 0/30 |
 | Actualizar Artículo | Estatus diferente al actual (opciones inhabilitadas en select) · Precio > 0 si vendido · Notas máx. 200 chars con contador |
 
+### 4.8 Comportamiento y Bugs Específicos Móviles (Mobile Caveats)
+La experiencia puramente móvil y PWA acarrea limitaciones de navegador que hemos mitigado:
+
+1. **Autocorrección Móvil:** Los teclados de iOS/Android insertan un espacio final en los campos `.email`. Fue mitigado con auto-recortes (`.trim()`) en el payload de acceso.
+2. **Supabase "Web Lock Deadlock":** Supabase usa `navigator.locks` subyacentes. En pestañas en modo _Incógnito_ o en Safari, si se recarga la pestaña (`window.location.href`) durante validación asíncrona, el navegador nunca suelta el lock internamente, bloqueando el estado y congelando el login. Se resolvió delegando las transiciones suavemente con React Router y desusando redrecciones forzadas (hard-redirects) tras `signInWithPassword`.
+3. **Pausado de Eventos (Google App WebView):** Al estar la PWA o visor de web dentro de la aplicación de Google, el sistema silencia los eventos en background (`onAuthStateChange` de Supabase nunca se dispara). Se solucionó inyectando **un hard navigate** programado con React Router con `500ms` de retraso como plan alternativo de seguridad tras ganar la sesión.
+
 ---
 
 ## 5. Servicios (`src/services/`)

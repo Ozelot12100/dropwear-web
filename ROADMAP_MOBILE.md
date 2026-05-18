@@ -10,8 +10,9 @@ Enfocado en potenciar la experiencia desde teléfonos móviles para el personal 
 - **Concepto:** Integrar un botón en la vista de inventario que active la cámara del dispositivo móvil para escanear etiquetas de la ropa.
 - **Beneficio:** Agiliza masivamente la búsqueda de prendas, el ingreso de nuevo stock o la marca de un artículo como "Vendido".
 
-### 3. Navegación Inferior (Bottom Tab Bar)
+### 3. Navegación Inferior (Bottom Tab Bar) — ✅ Parcialmente Implementado
 - **Concepto:** Ocultar el menú superior (Hamburger Menu) en pantallas móviles y reemplazarlo por una barra de navegación inferior con iconos fijos (Dashboard, Inventario, Escáner, Perfil).
+- **Estado Actual:** El componente `BottomNav.tsx` ya se integró exitosamente y se niveló con la autenticación RBAC para mostrar a los usuarios móviles las mismas 5 pestañas completas que en escritorio.
 - **Beneficio:** Mejora enormemente la ergonomía, ya que los pulgares del usuario alcanzan las opciones principales sin esfuerzo.
 
 ### 4. Optimización de Formularios para Pantallas Táctiles
