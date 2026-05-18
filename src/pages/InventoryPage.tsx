@@ -13,7 +13,7 @@ import { TransactionModal } from '../components/inventory/TransactionModal';
 import { AddItemModal } from '../components/inventory/AddItemModal';
 import { EditItemModal } from '../components/inventory/EditItemModal';
 import { RoleGuard } from '../components/layout/RoleGuard';
-import { Plus, ChevronRight, Search, X, Edit2, Filter } from 'lucide-react';
+import { Plus, ChevronRight, Search, X, Edit2, Filter, Tag, Layers, Ruler } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetClose } from '../components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Label } from '../components/ui/label';
@@ -324,18 +324,22 @@ export default function InventoryPage() {
                                 Refina tu búsqueda en el inventario actual.
                             </SheetDescription>
                         </SheetHeader>
-                        <div className="space-y-6">
-                            <div className="space-y-2">
-                                <Label>Marca</Label>
+                        <div className="space-y-8 mt-2">
+                            {/* Grupo Marca */}
+                            <div className="space-y-3">
+                                <Label className="text-sm font-semibold flex items-center text-slate-700">
+                                    <Tag className="w-4 h-4 mr-2 text-indigo-500" />
+                                    Marca
+                                </Label>
                                 <Select
                                     value={advancedFilters.brand}
                                     onValueChange={(val) => setAdvancedFilters(prev => ({ ...prev, brand: val || 'todas' }))}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="w-full h-12 bg-slate-50 border-transparent hover:bg-slate-100 transition-colors focus:ring-indigo-500">
                                         <SelectValue placeholder="Todas las marcas" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todas">Todas las marcas</SelectItem>
+                                        <SelectItem value="todas" className="font-medium text-slate-500">Todas las marcas</SelectItem>
                                         {dynamicOptions.brands.map(b => (
                                             <SelectItem key={b} value={b}>{b}</SelectItem>
                                         ))}
@@ -343,17 +347,21 @@ export default function InventoryPage() {
                                 </Select>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>Categoría</Label>
+                            {/* Grupo Categoría */}
+                            <div className="space-y-3">
+                                <Label className="text-sm font-semibold flex items-center text-slate-700">
+                                    <Layers className="w-4 h-4 mr-2 text-indigo-500" />
+                                    Categoría
+                                </Label>
                                 <Select
                                     value={advancedFilters.category}
                                     onValueChange={(val) => setAdvancedFilters(prev => ({ ...prev, category: val || 'todas' }))}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="w-full h-12 bg-slate-50 border-transparent hover:bg-slate-100 transition-colors focus:ring-indigo-500">
                                         <SelectValue placeholder="Todas las categorías" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todas">Todas las categorías</SelectItem>
+                                        <SelectItem value="todas" className="font-medium text-slate-500">Todas las categorías</SelectItem>
                                         {dynamicOptions.categories.map(c => (
                                             <SelectItem key={c} value={c}>{c}</SelectItem>
                                         ))}
@@ -361,26 +369,44 @@ export default function InventoryPage() {
                                 </Select>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>Talla</Label>
-                                <Select
-                                    value={advancedFilters.size}
-                                    onValueChange={(val) => setAdvancedFilters(prev => ({ ...prev, size: val || 'todas' }))}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Todas las tallas" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="todas">Todas las tallas</SelectItem>
-                                        {dynamicOptions.sizes.map(s => (
-                                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            {/* Grupo Talla (Pills Interactivas) */}
+                            <div className="space-y-3">
+                                <Label className="text-sm font-semibold flex items-center text-slate-700">
+                                    <Ruler className="w-4 h-4 mr-2 text-indigo-500" />
+                                    Talla
+                                </Label>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        onClick={() => setAdvancedFilters(prev => ({ ...prev, size: 'todas' }))}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                            advancedFilters.size === 'todas'
+                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        Todas
+                                    </button>
+                                    {dynamicOptions.sizes.map(s => {
+                                        const isSelected = advancedFilters.size === s;
+                                        return (
+                                            <button
+                                                key={s}
+                                                onClick={() => setAdvancedFilters(prev => ({ ...prev, size: s }))}
+                                                className={`px-4 py-2 rounded-lg text-sm font-bold uppercase transition-all ${
+                                                    isSelected
+                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-2 ring-indigo-600 ring-offset-1'
+                                                        : 'bg-white border border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50'
+                                                }`}
+                                            >
+                                                {s}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
 
-                        <SheetFooter className="mt-8 gap-2 sm:gap-0">
+                        <SheetFooter className="mt-10 gap-3 sm:gap-2">
                             {activeFiltersCount > 0 && (
                                 <Button
                                     variant="outline"
