@@ -65,7 +65,8 @@ src/
 ### 4.2 Inventario en Tiempo Real
 - `InventoryPage.tsx` consume `inventoryService.getAllItems()` via React Query.
 - Integra `supabase.channel()` que escucha eventos Postgres; al detectar un cambio de estado invalida la caché de React Query y re-renderiza la lista sin recargar el navegador.
-- Filtros por estatus (`Todos`, `Disponible`, `Apartado`, `Vendido`) funcionales.
+- **Filtros de Acceso Rápido:** Píldoras (Pills) con scroll horizontal para filtrar por estatus (`Todos`, `Disponible`, `Apartado`, `Vendido`, etc.).
+- **Filtros Avanzados (Sheet UI):** Menú lateral/inferior para búsquedas complejas. Genera dinámicamente las opciones disponibles de `Marca`, `Categoría` y `Talla` basado en el stock actual. UI optimizada para pantallas táctiles (uso del componente `<Sheet>` y botones-píldora para las tallas).
 
 ### 4.3 Modales de Inventario
 - **`AddItemModal.tsx`:** Formulario para dar de alta prendas seleccionando producto del catálogo, talla y color. Todas las validaciones de campos están implementadas.
