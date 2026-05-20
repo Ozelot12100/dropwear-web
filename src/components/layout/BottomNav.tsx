@@ -1,13 +1,19 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks';
-import { LayoutDashboard, BookOpen, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, BookOpen, ClipboardList, Package, Users } from 'lucide-react';
 
 const TABS = [
     {
         to: '/',
-        label: 'Inventario',
+        label: 'Inicio',
         icon: LayoutDashboard,
         roles: null, // accesible para todos
+    },
+    {
+        to: '/inventory',
+        label: 'Inventario',
+        icon: Package,
+        roles: null,
     },
     {
         to: '/catalogs',
@@ -20,6 +26,12 @@ const TABS = [
         label: 'Bitácora',
         icon: ClipboardList,
         roles: null,
+    },
+    {
+        to: '/staff',
+        label: 'Personal',
+        icon: Users,
+        roles: ['superadmin'] as const,
     },
 ];
 
@@ -36,7 +48,7 @@ export function BottomNav() {
             <div className="flex">
                 {TABS.map(({ to, label, icon: Icon, roles }) => {
                     const isRestricted = roles !== null;
-                    const hasAccess = !isRestricted || (profile?.role && roles.includes(profile.role as typeof roles[number]));
+                    const hasAccess = !isRestricted || (profile?.role && (roles as readonly string[]).includes(profile.role));
 
                     if (!hasAccess) return null;
 
@@ -46,10 +58,9 @@ export function BottomNav() {
                             to={to}
                             end={to === '/'}
                             className={({ isActive }) =>
-                                `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-                                    isActive
-                                        ? 'text-gray-900'
-                                        : 'text-gray-400'
+                                `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${isActive
+                                    ? 'text-gray-900'
+                                    : 'text-gray-400'
                                 }`
                             }
                         >

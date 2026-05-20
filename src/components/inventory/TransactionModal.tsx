@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';
 import { inventoryService } from '../../services/inventory';
 import { useAuth } from '../../hooks';
 import type { ItemStatus, InventoryItemWithRelations } from '../../types';
@@ -15,6 +16,8 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
+
+const MAX_NOTES_LENGTH = 200;
 
 interface TransactionModalProps {
     item: InventoryItemWithRelations | null;
@@ -47,20 +50,41 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
             if (!user) throw new Error('Usuario no autenticado');
             if (!selectedStatus) throw new Error('Selecciona un nuevo estatus');
 
-            const parsedPrice = selectedStatus === 'vendido' ? parseFloat(priceSold) : null;
+            // 1. "Despertador" Estricto: Forzar a Supabase a despertar su lock de sesión local
+            await supabase.auth.getSession();
+
+            // No permitir cambiar al mismo estatus actual
+            if (item && selectedStatus === item.status) {
+                throw new Error(`El artículo ya tiene el estatus "${selectedStatus}". Selecciona uno diferente.`);
+            }
+
+            // 2. Control anti-comas para teclados nativos móviles
+            const safePriceSold = priceSold.replace(/,/g, '.');
+            const parsedPrice = selectedStatus === 'vendido' ? parseFloat(safePriceSold) : null;
             if (selectedStatus === 'vendido' && (isNaN(parsedPrice!) || parsedPrice! <= 0)) {
-                throw new Error('Ingresa un precio de venta válido');
+                throw new Error('Ingresa un precio de venta válido (mayor a $0).');
+            }
+
+            if (notes.length > MAX_NOTES_LENGTH) {
+                throw new Error(`Las notas no pueden superar los ${MAX_NOTES_LENGTH} caracteres.`);
             }
 
             if (!item) throw new Error('No hay prenda seleccionada.');
 
-            await inventoryService.updateItemStatus({
+            // 3. Bomba de tiempo (Timeout) de 15 segundos
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("La operación tardó demasiado en responder (15s). Verifica tu conexión o recarga la página.")), 15000)
+            );
+
+            const updatePromise = inventoryService.updateItemStatus({
                 itemId: item.id,
                 newStatus: selectedStatus as ItemStatus,
                 priceSold: parsedPrice,
                 userId: user.id,
                 notes: notes.trim() || undefined,
             });
+
+            await Promise.race([updatePromise, timeoutPromise]);
         },
         onSuccess: () => {
             // Forzar recarga de los datos en background
@@ -74,6 +98,7 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
         mutation.mutate();
     };
 
@@ -106,10 +131,10 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                                 required
                             >
                                 <option value="" disabled>Selecciona una opción...</option>
-                                <option value="disponible">🟢 Disponible</option>
-                                <option value="apartado">🟡 Apartado</option>
-                                <option value="vendido">🔵 Vendido</option>
-                                <option value="devuelto">🔴 Devuelto</option>
+                                <option value="disponible" disabled={item.status === 'disponible'}>🟢 Disponible</option>
+                                <option value="apartado" disabled={item.status === 'apartado'}>🟡 Apartado</option>
+                                <option value="vendido" disabled={item.status === 'vendido'}>🔵 Vendido</option>
+                                <option value="devuelto" disabled={item.status === 'devuelto'}>🔴 Devuelto</option>
                             </select>
                         </div>
 
@@ -123,6 +148,7 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                                     id="priceSold"
                                     type="number"
                                     step="0.01"
+                                    min="0.01"
                                     placeholder="Ej. 250.00"
                                     value={priceSold}
                                     onChange={(e) => setPriceSold(e.target.value)}
@@ -133,13 +159,19 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                         )}
 
                         <div className="grid gap-2">
-                            <Label htmlFor="notes">Notas / Comentarios (opcional)</Label>
+                            <Label htmlFor="notes">
+                                Notas / Comentarios (opcional)
+                            </Label>
                             <Input
                                 id="notes"
                                 placeholder="Ej. Entregado a Juan Pérez en Punto X"
                                 value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
+                                onChange={(e) => setNotes(e.target.value.slice(0, MAX_NOTES_LENGTH))}
+                                maxLength={MAX_NOTES_LENGTH}
                             />
+                            <p className={`text-xs text-right ${notes.length >= MAX_NOTES_LENGTH ? 'text-red-500' : 'text-muted-foreground'}`}>
+                                {notes.length}/{MAX_NOTES_LENGTH}
+                            </p>
                         </div>
 
                         {error && (

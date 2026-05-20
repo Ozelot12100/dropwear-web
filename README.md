@@ -1,73 +1,63 @@
-# React + TypeScript + Vite
+# DropWear - MVP Almacén Físico y Administrativo 👕📱
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Bienvenido al repositorio de **DropWear**, una plataforma de punto de venta (POS) y gestión de inventario en tiempo real adaptada para operaciones en tienda física y entregas a domicilio en Puerto Peñasco, Sonora.
 
-Currently, two official plugins are available:
+DropWear ha sido planeado, diseñado y construido utilizando React (TypeScript + Vite) en el frontend y Supabase (Postgres + Edge Functions) en el backend, priorizando siempre la estabilidad transaccional, trazabilidad de inventarios y una interfaz *Mobile-First*.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 📚 Índice de Documentación Técnica
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Para que el próximo equipo de desarrollo o compañeros programadores puedan entender la estructura y el progreso del proyecto de manera impecable, la documentación ha sido dividida en los siguientes archivos clave que debes leer:
 
-## Expanding the ESLint configuration
+1. **[Arquitectura Frontend y Reglas de React](./DOCUMENTACION_FRONTEND.md)**
+   Aprende cómo está estructurado el código de React, cuáles son los lineamientos del equipo (uso estricto de TanStack Query, nada de `any`), cómo funciona nuestra UI responsiva con `shadcn/ui` y qué modales/vistas ya están programadas al 100%.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+2. **[Arquitectura Backend, Base de Datos y Edge Functions](./Documentación%20Técnica%20del%20Backend%20y%20Base%20de%20Datos%20-%20DropWear.md)**
+   El corazón del proyecto. Aquí encontrarás el diagrama exacto de nuestras tablas en Postgres, cómo funciona el RBAC (Socio, Vendedor, Superadmin, etc.), cómo manejamos la sincronización Realtime (WebSockets) y el uso detallado de nuestras Edge Functions (Deno).
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+3. **[Hoja de Ruta (Lo que falta por construir)](./ROADMAP_MOBILE.md)**
+   Conoce las funcionalidades futuras planeadas tanto para potenciar las ventas desde el celular (Pull to refresh, Swipe, escaner etc.) como las tareas gerenciales estratégicas desde PC (Cortes de caja, Analítica, Exportación a Excel).
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🚀 Inicio Rápido (Quick Start)
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Requisitos Previos
+* Node.js v18+
+* Gestor de paquetes `npm` o `pnpm`
+* CLI de Supabase instalado (opcional, pero recomendado para desplegar Edge Functions)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Instalación
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/Ozelot12100/dropwear-web.git
+   cd dropwear-web
+   ```
+
+2. Instala las dependencias:
+   ```bash
+   npm install
+   ```
+
+3. Variables de Entorno:
+   Crea un archivo `.env.local` en la raíz (agrega lo siguiente y solicita los accesos de Supabase al administrador que tiene el control de la organización):
+   ```env
+   VITE_SUPABASE_URL=tu_url_aqui
+   VITE_SUPABASE_ANON_KEY=tu_llave_anonima_aqui
+   ```
+
+4. Levanta el entorno de local:
+   ```bash
+   npm run dev
+   ```
+
+---
+
+## 🛠 Comandos Útiles para el Nuevo Equipo
+
+* **`npm run build`**: Compila el proyecto verificando estrictamente los tipos de TypeScript. Si hay errores (que no los hay actualmente), el CI detendrá el despliegue a Producción (Vercel).
+* **Despliegue de Edge Functions:** Cuando modifiquen una función en `supabase/functions/`, deben subirla con `supabase functions deploy <nombre_funcion> --no-verify-jwt`.
+
+¡Mucho éxito con la continuación del proyecto! Revisar los documentos listados arriba garantiza dominar todo el ecosistema de DropWear sin fisuras.

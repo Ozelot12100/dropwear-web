@@ -1,9 +1,19 @@
-import { NavLink } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks';
 import { RoleGuard } from './RoleGuard';
-import { LogOut, LayoutDashboard, BookOpen, ClipboardList } from 'lucide-react';
-import { Button } from '../ui/button';
+import { LogOut, LayoutDashboard, BookOpen, ClipboardList, Users, Package } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+    DropdownMenuGroup,
+} from "../ui/dropdown-menu";
+import { PasswordChangeModal } from '../auth/PasswordChangeModal';
 import Logo from '../../assets/logo.png';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -15,6 +25,8 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function Navbar() {
     const { profile, signOut } = useAuth();
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const navigate = useNavigate();
 
     return (
         <nav className="border-b bg-white">
@@ -30,6 +42,11 @@ export function Navbar() {
                     <nav className="hidden sm:flex items-center gap-1">
                         <NavLink to="/" end className={navLinkClass}>
                             <LayoutDashboard className="h-4 w-4" />
+                            Inicio
+                        </NavLink>
+
+                        <NavLink to="/inventory" className={navLinkClass}>
+                            <Package className="h-4 w-4" />
                             Inventario
                         </NavLink>
 
@@ -46,10 +63,18 @@ export function Navbar() {
                             <ClipboardList className="h-4 w-4" />
                             Bitácora
                         </NavLink>
+
+                        {/* Staff: solo superadmin */}
+                        <RoleGuard allowed={['superadmin']}>
+                            <NavLink to="/staff" className={navLinkClass}>
+                                <Users className="h-4 w-4" />
+                                Personal
+                            </NavLink>
+                        </RoleGuard>
                     </nav>
 
                     {/* Usuario + Logout */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         <div className="hidden sm:flex flex-col items-end">
                             <span className="text-sm font-medium text-gray-900">
                                 {profile?.full_name || 'Cargando...'}
@@ -58,14 +83,43 @@ export function Navbar() {
                                 {profile?.role || 'Socio'}
                             </Badge>
                         </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => signOut()}
-                            title="Cerrar sesión"
-                        >
-                            <LogOut className="h-5 w-5 text-gray-600" />
-                        </Button>
+                        
+                        <DropdownMenu>
+                            <DropdownMenuTrigger className="relative flex items-center justify-center h-10 w-10 rounded-full bg-gray-900 hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 p-0 overflow-hidden transition-colors">
+                                <span className="text-white font-bold text-lg">
+                                    {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U'}
+                                </span>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56 bg-white">
+                                <DropdownMenuGroup>
+                                    <DropdownMenuLabel className="font-normal">
+                                        <div className="flex flex-col space-y-1">
+                                            <p className="text-sm font-medium leading-none">{profile?.full_name || 'Usuario'}</p>
+                                            <p className="text-xs leading-none text-gray-500">
+                                                Rol: {profile?.role || 'socio'}
+                                            </p>
+                                        </div>
+                                    </DropdownMenuLabel>
+                                </DropdownMenuGroup>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+                                    Mi Perfil
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setIsPasswordModalOpen(true)} className="cursor-pointer">
+                                    Cambiar contraseña
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50">
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    <span>Cerrar sesión</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <PasswordChangeModal 
+                            isOpen={isPasswordModalOpen} 
+                            onClose={() => setIsPasswordModalOpen(false)} 
+                        />
                     </div>
                 </div>
             </div>

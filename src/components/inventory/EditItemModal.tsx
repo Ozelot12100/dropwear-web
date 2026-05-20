@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventory';
 import { catalogService } from '../../services/catalogs';
 import { useAuth } from '../../hooks';
+import { supabase } from '../../lib/supabase';
+import type { InventoryItemWithRelations } from '../../types';
 import {
     Dialog,
     DialogContent,
@@ -18,12 +20,13 @@ import { Label } from '../ui/label';
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'ÚNICA'];
 const COLOR_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/;
 
-interface AddItemModalProps {
+interface EditItemModalProps {
+    item: InventoryItemWithRelations | null;
     isOpen: boolean;
     onClose: () => void;
 }
 
-export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
+export function EditItemModal({ item, isOpen, onClose }: EditItemModalProps) {
     const { user } = useAuth();
     const queryClient = useQueryClient();
 
@@ -39,16 +42,18 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
         enabled: isOpen, // Solo carga cuando el modal está abierto
     });
 
-    const resetForm = () => {
-        setProductId('');
-        setSize('');
-        setColor('');
-        setError(null);
-    };
+    // Sincronizar el formulario cuando el modal se abre con un ítem
+    useEffect(() => {
+        if (item && isOpen) {
+            setProductId(item.products?.id?.toString() || '');
+            setSize(item.size);
+            setColor(item.color);
+            setError(null);
+        }
+    }, [item, isOpen]);
 
     const handleOpenChange = (open: boolean) => {
         if (!open) {
-            resetForm();
             onClose();
         }
     };
@@ -63,26 +68,37 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
     const mutation = useMutation({
         mutationFn: async () => {
             if (!user) throw new Error('Usuario no autenticado.');
+            if (!item) throw new Error('No hay prenda seleccionada.');
             if (!productId) throw new Error('Selecciona un producto del catálogo.');
             if (!size) throw new Error('Selecciona una talla.');
 
             const colorError = validateColor(color);
             if (colorError) throw new Error(colorError);
 
-            await inventoryService.addItem({
+            // 1. "Despertador" Estricto: Forzar a Supabase a despertar su lock de sesión local
+            await supabase.auth.getSession();
+
+            // 2. Bomba de tiempo (Timeout) de 15 segundos para móviles
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("La operación tardó demasiado en responder (15s). Verifica tu conexión o recarga la página.")), 15000)
+            );
+
+            const updatePromise = inventoryService.updateItemDetails({
+                itemId: item.id,
                 productId: Number(productId),
                 size,
                 color: color.trim(),
                 userId: user.id,
             });
+
+            await Promise.race([updatePromise, timeoutPromise]);
         },
         onSuccess: () => {
-            // Refrescar el inventario en el Dashboard automáticamente
             queryClient.invalidateQueries({ queryKey: ['inventory_items'] });
             handleOpenChange(false);
         },
         onError: (err: Error) => {
-            setError(err.message || 'Error al agregar la prenda.');
+            setError(err.message || 'Error al corregir los datos.');
         },
     });
 
@@ -92,6 +108,8 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
         mutation.mutate();
     };
 
+    if (!item) return null;
+
     const selectedProduct = products?.find((p) => p.id === Number(productId));
 
     return (
@@ -99,18 +117,19 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
             <DialogContent className="sm:max-w-[460px]">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
-                        <DialogTitle>Agregar Nueva Prenda al Inventario</DialogTitle>
+                        <DialogTitle>Editar Prenda #{item.id}</DialogTitle>
                         <DialogDescription>
-                            El artículo se registrará como <strong>disponible</strong> de forma inmediata.
+                            Modifica los detalles físicos erróneos de la prenda.
+                            Este cambio quedará registrado en la bitácora.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="grid gap-4 py-4">
                         {/* Selector de Producto */}
                         <div className="grid gap-2">
-                            <Label htmlFor="product">Producto del Catálogo *</Label>
+                            <Label htmlFor="edit-product">Producto del Catálogo *</Label>
                             <select
-                                id="product"
+                                id="edit-product"
                                 className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 value={productId}
                                 onChange={(e) => setProductId(e.target.value)}
@@ -136,9 +155,9 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
 
                         {/* Selector de Talla */}
                         <div className="grid gap-2">
-                            <Label htmlFor="size">Talla *</Label>
+                            <Label htmlFor="edit-size">Talla *</Label>
                             <select
-                                id="size"
+                                id="edit-size"
                                 className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 value={size}
                                 onChange={(e) => setSize(e.target.value)}
@@ -153,11 +172,11 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
 
                         {/* Input de Color */}
                         <div className="grid gap-2">
-                            <Label htmlFor="color">
+                            <Label htmlFor="edit-color">
                                 Color * <span className="text-xs text-muted-foreground font-normal">(solo letras, mín. 3)</span>
                             </Label>
                             <Input
-                                id="color"
+                                id="edit-color"
                                 type="text"
                                 placeholder="ej. Negro, Azul Rey, Rojo Vino"
                                 value={color}
@@ -186,7 +205,7 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={mutation.isPending || loadingProducts}>
-                            {mutation.isPending ? 'Guardando...' : 'Agregar al Inventario'}
+                            {mutation.isPending ? 'Guardando Correciones...' : 'Confirmar Cambios'}
                         </Button>
                     </DialogFooter>
                 </form>

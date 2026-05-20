@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../components/ui/card';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import Logo from '../assets/logo.png';
 
 export default function Login() {
@@ -15,86 +20,138 @@ export default function Login() {
         setLoading(true);
         setError(null);
 
-        const { error: authError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        try {
+            const cleanEmail = email.trim(); // Importante para móviles (espacios automáticos)
 
-        if (authError) {
-            setError(authError.message);
+            // Agregamos un protector de tiempo (Timeout de 10 segundos) por si la red del móvil bloquea la petición
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("La red tardó demasiado en responder (Timeout).")), 10000)
+            );
+
+            const authPromise = supabase.auth.signInWithPassword({
+                email: cleanEmail,
+                password,
+            });
+
+            // Usamos Promise.race para no quedarnos atascados infinitamente
+            const response: any = await Promise.race([authPromise, timeoutPromise]);
+
+            if (response?.error) {
+                // Si la respuesta regresó pero con error de Supabase
+                setError(`Error de autenticación: ${response.error.message || 'Credenciales inválidas.'}`);
+                setLoading(false);
+            } else if (response?.data?.session) {
+                // Éxito real
+                // La app de Google (WebView) y algunos Chrome restringen los listeners de fondo (onAuthStateChange),
+                // lo que ocasiona que la UI no se entere autónomamente del éxito.
+                // Forzamos el salto con react-router, pero usando un retraso de seguridad de 500ms
+                // para permitir que Supabase termine de liberar sus candados internos (Web Locks).
+                setTimeout(() => {
+                    navigate('/', { replace: true });
+                }, 500);
+            } else {
+                // Respuesta inesperada
+                setError('No se pudo establecer la sesión. Respuesta vacía del servidor.');
+                setLoading(false);
+            }
+        } catch (err: any) {
+            console.error("Error inesperado en login:", err);
+            setError(`Error del sistema: ${err.message || 'Bloqueo de red o caché activo.'}`);
             setLoading(false);
-        } else {
-            // Navigate to Dashboard upon success
-            navigate('/', { replace: true });
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-            <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="flex justify-center text-indigo-600">
-                    <img src={Logo} alt="DropWear Logo" className="h-24 w-auto drop-shadow-md rounded-md" style={{ filter: 'drop-shadow(0 4px 3px rgb(0 0 0 / 0.17)) invert(1)' }} />
+        <div className="min-h-screen flex items-center justify-center bg-gray-50/50 relative overflow-hidden">
+            {/* Background Decorations */}
+            <div className="absolute top-0 w-full h-full bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.1),rgba(255,255,255,0))]"></div>
+
+            <div className="w-full max-w-md px-4 sm:px-0 relative z-10">
+                <div className="mb-8 flex flex-col items-center">
+                    <div className="relative">
+                        <img
+                            src={Logo}
+                            alt="DropWear Logo"
+                            className="h-28 w-auto object-contain drop-shadow-sm"
+                        // Sin invert, ya que el fondo de la pantalla y logo son claros/transparentes.
+                        // Si el logo original es negro, se verá perfecto sobre bg-gray-50.
+                        />
+                    </div>
                 </div>
-                <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                    DropWear
-                </h2>
-                <p className="mt-2 text-center text-sm text-gray-600">
-                    Panel Administrativo de Sucursal
-                </p>
-            </div>
 
-            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-                    <form className="space-y-6" onSubmit={handleLogin}>
-                        {error && (
-                            <div className="bg-red-50 border-l-4 border-red-400 p-4">
-                                <p className="text-sm text-red-700">{error}</p>
-                            </div>
-                        )}
+                <Card className="border-gray-200/60 shadow-xl shadow-black/[0.03] backdrop-blur-xl bg-white/95">
+                    <CardHeader className="space-y-2 pb-6 text-center">
+                        <CardTitle className="text-2xl font-bold tracking-tight text-gray-900">
+                            Portal Administrativo
+                        </CardTitle>
+                        <CardDescription className="text-sm text-gray-500">
+                            Ingresa tus credenciales para acceder al sistema
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-600 rounded-md p-3 flex items-start gap-2 text-sm animate-in fade-in slide-in-from-top-1">
+                                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5 text-red-500" />
+                                    <p className="leading-snug">{error}</p>
+                                </div>
+                            )}
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                                Correo Electrónico
-                            </label>
-                            <div className="mt-1">
-                                <input
+                            <div className="space-y-2">
+                                <Label htmlFor="email" className="text-gray-700 font-medium">Correo Electrónico</Label>
+                                <Input
+                                    id="email"
                                     type="email"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    placeholder="admin@dropwear.com"
+                                    placeholder="admin@dropwear.mx"
+                                    className="bg-white border-gray-300 focus-visible:ring-gray-900 focus-visible:border-gray-900 placeholder:text-gray-400 transition-all"
+                                    autoComplete="email"
+                                    disabled={loading}
                                 />
                             </div>
-                        </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                                Contraseña
-                            </label>
-                            <div className="mt-1">
-                                <input
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="password" className="text-gray-700 font-medium">Contraseña</Label>
+                                </div>
+                                <Input
+                                    id="password"
                                     type="password"
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                     placeholder="••••••••"
+                                    className="bg-white border-gray-300 focus-visible:ring-gray-900 focus-visible:border-gray-900 transition-all"
+                                    autoComplete="current-password"
+                                    disabled={loading}
                                 />
                             </div>
-                        </div>
 
-                        <div>
-                            <button
+                            <Button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                                className="w-full bg-black hover:bg-gray-900 text-white font-semibold transition-all shadow-md mt-6 relative overflow-hidden group"
                             >
-                                {loading ? 'Validando...' : 'Acceder al Sistema'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                                <span className="absolute bottom-0 left-0 w-full h-[3px] bg-red-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></span>
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Verificando...
+                                    </>
+                                ) : (
+                                    'Iniciar Sesión'
+                                )}
+                            </Button>
+                        </form>
+                    </CardContent>
+                    <CardFooter className="flex justify-center border-t border-gray-100 pt-6 pb-6">
+                        <p className="text-xs text-gray-400 font-medium">
+                            Sistema exclusivo para personal autorizado.
+                        </p>
+                    </CardFooter>
+                </Card>
             </div>
         </div>
     );

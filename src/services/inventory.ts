@@ -147,4 +147,77 @@ export const inventoryService = {
 
         return newItem;
     },
+
+    /**
+     * Corrige los detalles físicos de un artículo (Producto, Talla, Color).
+     * Requiere insertar un log explicando la edición.
+     */
+    async updateItemDetails({
+        itemId,
+        productId,
+        size,
+        color,
+        userId,
+    }: {
+        itemId: number;
+        productId: number;
+        size: string;
+        color: string;
+        userId: string;
+    }) {
+        // 1. Obtener los datos previos para documentar el cambio en la bitácora
+        const { data: currentItem, error: fetchError } = await supabase
+            .from('inventory_items')
+            .select(`
+                status,
+                size,
+                color,
+                products ( id, name )
+            `)
+            .eq('id', itemId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        // 2. Actualizar las propiedades del ítem
+        const { error: updateError } = await supabase
+            .from('inventory_items')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update({
+                product_id: productId,
+                size: size.trim().toUpperCase(),
+                color: color.trim().toLowerCase(),
+                updated_by: userId,
+                updated_at: new Date().toISOString(),
+            } as never)
+            .eq('id', itemId);
+
+        if (updateError) throw updateError;
+
+        // 3. Documentar en la bitácora usando el action "actualizacion_estado" 
+        // pero especificando en la "notes" que fue una corrección de edición de detalles
+        const oldSize = (currentItem as any).size;
+        const oldColor = (currentItem as any).color;
+        const status = (currentItem as any).status;
+        const note = `Corrección de detalles (Antes -> Talla: ${oldSize}, Color: ${oldColor})`;
+
+        const { error: logError } = await supabase
+            .from('inventory_logs')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .insert({
+                item_id: itemId,
+                partner_id: userId,
+                action: 'actualizacion_estado' as LogAction,
+                previous_status: status as ItemStatus,
+                new_status: status as ItemStatus,
+                notes: note,
+            } as never);
+
+        if (logError) {
+            console.error('Error al insertar el log de edición:', logError);
+            throw new Error("Prenda corregida, pero falló el registro en la bitácora.");
+        }
+
+        return true;
+    },
 };
