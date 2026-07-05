@@ -22,6 +22,10 @@
       "@/*": ["./src/*"]
     },
 
+    /* Type safety */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
