@@ -24,20 +24,25 @@ export const dashboardService = {
             
         if (err2) throw err2;
 
-        // Vendidos hoy
-        const { data: soldToday, error: err3 } = await supabase
-            .from('inventory_items')
-            .select('price_sold')
-            .eq('status', 'vendido')
-            .gte('updated_at', todayISO);
-            
+        // Vendidos hoy: se derivan de la BITÁCORA (eventos 'venta' de hoy), no de
+        // `updated_at` del artículo —que se bumpea al editar detalles e inflaba las
+        // ventas del día. Cada log de venta es un evento real; el monto sale del
+        // precio del artículo vinculado.
+        const { data: salesToday, error: err3 } = await supabase
+            .from('inventory_logs')
+            .select('inventory_items ( price_sold )')
+            .eq('action', 'venta')
+            .gte('created_at', todayISO);
+
         if (err3) throw err3;
 
-        const soldCount = soldToday.length;
-        const totalRevenue = soldToday.reduce((acc, item) => {
-            const price = Number((item as { price_sold: number | null }).price_sold) || 0;
-            return acc + price;
-        }, 0);
+        type SaleRow = { inventory_items: { price_sold: number | null } | null };
+        const rows = (salesToday ?? []) as unknown as SaleRow[];
+        const soldCount = rows.length;
+        const totalRevenue = rows.reduce(
+            (acc, row) => acc + (Number(row.inventory_items?.price_sold) || 0),
+            0,
+        );
 
         return {
             availableCount: availableCount || 0,
