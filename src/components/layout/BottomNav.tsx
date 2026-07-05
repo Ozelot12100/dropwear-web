@@ -44,8 +44,8 @@ export function BottomNav() {
     const { profile } = useAuth();
 
     return (
-        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-bottom">
-            <div className="flex">
+        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-hairline safe-bottom">
+            <div className="flex px-2 py-1.5">
                 {TABS.map(({ to, label, icon: Icon, roles }) => {
                     const isRestricted = roles !== null;
                     const hasAccess = !isRestricted || (profile?.role && (roles as readonly string[]).includes(profile.role));
@@ -58,18 +58,18 @@ export function BottomNav() {
                             to={to}
                             end={to === '/'}
                             className={({ isActive }) =>
-                                `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${isActive
-                                    ? 'text-gray-900'
-                                    : 'text-gray-400'
+                                `flex-1 flex flex-col items-center justify-center gap-1 py-1 transition-colors active:scale-90 ${isActive
+                                    ? 'text-ink'
+                                    : 'text-muted-foreground'
                                 }`
                             }
                         >
                             {({ isActive }) => (
                                 <>
-                                    <div className={`p-1.5 rounded-lg transition-colors ${isActive ? 'bg-gray-100' : ''}`}>
+                                    <div className={`p-1.5 rounded-xl transition-colors ${isActive ? 'bg-secondary' : ''}`}>
                                         <Icon className="h-5 w-5" />
                                     </div>
-                                    <span className="text-[10px] font-medium">{label}</span>
+                                    <span className="text-[10px] font-semibold tracking-wide">{label}</span>
                                 </>
                             )}
                         </NavLink>
