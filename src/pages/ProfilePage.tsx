@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { PasswordChangeModal } from '../components/auth/PasswordChangeModal';
-import { User, Mail, Shield, Calendar, KeyRound, Pencil, Check, X, Loader2 } from 'lucide-react';
+import { Mail, Shield, Calendar, KeyRound, Pencil, Check, X, Loader2, LogOut, User } from 'lucide-react';
 import { usersService } from '../services/users';
 
+const capsLabel = 'text-[11px] font-semibold uppercase tracking-wider text-muted-foreground';
+
 export default function ProfilePage() {
-    const { user, profile, refreshProfile } = useAuth();
+    const { user, profile, refreshProfile, signOut } = useAuth();
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
     // Edit name state
@@ -37,7 +37,7 @@ export default function ProfilePage() {
             await refreshProfile();
             setIsEditingName(false);
             setMessage({ text: 'Nombre actualizado correctamente.', type: 'success' });
-            
+
             // Ocultar el mensaje de éxito después de 3 segundos
             setTimeout(() => setMessage(null), 3000);
         } catch (error) {
@@ -49,139 +49,167 @@ export default function ProfilePage() {
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'Desconocida';
-        return new Intl.DateTimeFormat('es-MX', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }).format(new Date(dateString));
+        return new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString));
     };
 
+    const initial = (profile?.full_name?.charAt(0) ?? 'U').toUpperCase();
+
     return (
-        <div className="space-y-6 max-w-3xl mx-auto pb-8">
-            <div className="flex items-center gap-3">
-                <div className="p-3 bg-gray-100 rounded-full">
-                    <User className="w-8 h-8 text-gray-900" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">Mi Perfil</h1>
-                    <p className="text-sm text-gray-500">Gestiona tu información personal y seguridad.</p>
-                </div>
+        <div className="mx-auto max-w-5xl space-y-6 pb-8">
+            <div>
+                <h1 className="font-heading text-2xl font-bold tracking-tight text-ink sm:text-[32px]">Mi Perfil</h1>
+                <p className="mt-1 text-sm text-muted-foreground">Gestiona tu información personal y seguridad.</p>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2">
-                <Card className="sm:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Shield className="w-5 h-5 text-indigo-600" />
-                            Información de la Cuenta
-                        </CardTitle>
-                        <CardDescription>
-                            Tus datos básicos y nivel de acceso en el sistema DropWear.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-1 p-3 bg-gray-50 rounded-lg border border-gray-100 sm:col-span-2">
+            <div className="grid gap-6 lg:grid-cols-3">
+                {/* ── Tarjeta de identidad ──────────────────────────── */}
+                <div className="lg:col-span-1">
+                    <div className="flex flex-col items-center rounded-xl border border-hairline bg-card p-6 text-center shadow-soft">
+                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-ink text-2xl font-bold text-white">
+                            {initial}
+                        </div>
+                        <h2 className="mt-4 font-heading text-lg font-bold text-ink">{profile?.full_name || 'Cargando...'}</h2>
+                        <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold capitalize text-muted-foreground">
+                            <span className="h-1.5 w-1.5 rounded-full bg-status-available" />
+                            {profile?.role || 'Desconocido'}
+                        </span>
+
+                        <div className="mt-6 w-full space-y-4 text-left">
+                            <div className="rounded-lg border border-hairline bg-secondary/50 p-3">
+                                <p className={capsLabel}>ID Sistema</p>
+                                <p className="mt-1 font-mono text-sm text-ink">{user?.id?.split('-')[0] ?? '—'}</p>
+                            </div>
+                            <div className="px-1">
+                                <p className={capsLabel}>Miembro desde</p>
+                                <p className="mt-1 text-sm font-medium text-ink">{formatDate(user?.created_at)}</p>
+                            </div>
+                        </div>
+
+                        <Button
+                            variant="outline"
+                            onClick={() => signOut()}
+                            className="mt-6 w-full gap-2 border-status-returned/30 text-status-returned hover:bg-status-returned/10 hover:text-status-returned"
+                        >
+                            <LogOut className="h-4 w-4" />
+                            Cerrar Sesión
+                        </Button>
+                    </div>
+                </div>
+
+                {/* ── Información + Seguridad ────────────────────────── */}
+                <div className="space-y-6 lg:col-span-2">
+                    {/* Información de Cuenta */}
+                    <div className="rounded-xl border border-hairline bg-card p-6 shadow-soft">
+                        <h3 className="flex items-center gap-2 font-heading text-lg font-semibold text-ink">
+                            <User className="h-5 w-5 text-brand" />
+                            Información de Cuenta
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">Tus datos básicos y nivel de acceso en DropWear.</p>
+
+                        <div className="mt-6 space-y-5">
+                            {/* Nombre (editable) */}
+                            <div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                                        <User className="w-3.5 h-3.5" /> Nombre Completo
-                                    </span>
+                                    <span className={capsLabel}>Nombre completo</span>
                                     {!isEditingName && (
-                                        <Button variant="ghost" size="sm" className="h-6 px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50" onClick={() => setIsEditingName(true)}>
-                                            <Pencil className="w-3 h-3 mr-1" /> Editar
-                                        </Button>
+                                        <button
+                                            onClick={() => setIsEditingName(true)}
+                                            className="inline-flex items-center gap-1 text-xs font-semibold text-brand transition-colors hover:text-brand/80"
+                                        >
+                                            <Pencil className="h-3 w-3" /> Editar
+                                        </button>
                                     )}
                                 </div>
-                                
                                 {isEditingName ? (
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <Input 
-                                            value={newName} 
-                                            onChange={(e) => setNewName(e.target.value)} 
-                                            className="h-8 max-w-[300px]"
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <Input
+                                            value={newName}
+                                            onChange={(e) => setNewName(e.target.value)}
+                                            className="h-10 max-w-[320px]"
                                             disabled={isSaving}
                                             autoFocus
                                             placeholder="Tu nombre completo"
                                         />
-                                        <Button size="sm" className="h-8 w-8 p-0" variant="default" onClick={handleSaveName} disabled={isSaving}>
-                                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                        <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleSaveName} disabled={isSaving}>
+                                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                                         </Button>
-                                        <Button size="sm" className="h-8 w-8 p-0" variant="outline" onClick={() => { setIsEditingName(false); setNewName(profile?.full_name || ''); setMessage(null); }} disabled={isSaving}>
-                                            <X className="w-4 h-4" />
+                                        <Button
+                                            size="icon"
+                                            variant="outline"
+                                            className="h-10 w-10 shrink-0"
+                                            onClick={() => { setIsEditingName(false); setNewName(profile?.full_name || ''); setMessage(null); }}
+                                            disabled={isSaving}
+                                        >
+                                            <X className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 ) : (
-                                    <p className="text-sm font-semibold text-gray-900">{profile?.full_name || 'Cargando...'}</p>
+                                    <p className="mt-1.5 text-sm font-semibold text-ink">{profile?.full_name || 'Cargando...'}</p>
                                 )}
-
                                 {message && (
-                                    <p className={`text-xs mt-1 font-medium ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                                    <p className={`mt-1.5 text-xs font-medium ${message.type === 'success' ? 'text-status-available' : 'text-status-returned'}`}>
                                         {message.text}
                                     </p>
                                 )}
                             </div>
-                            
-                            <div className="space-y-1 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                                    <Mail className="w-3.5 h-3.5" /> Correo Electrónico
+
+                            {/* Correo (solo lectura) */}
+                            <div>
+                                <span className={`flex items-center gap-1.5 ${capsLabel}`}>
+                                    <Mail className="h-3.5 w-3.5" /> Correo electrónico
                                 </span>
-                                <p className="text-sm font-semibold text-gray-900 truncate" title={user?.email}>{user?.email || 'Cargando...'}</p>
+                                <p className="mt-1.5 truncate text-sm font-semibold text-ink" title={user?.email}>{user?.email || 'Cargando...'}</p>
                             </div>
 
-                            <div className="space-y-1 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                                    <Shield className="w-3.5 h-3.5" /> Rol de Usuario
-                                </span>
+                            {/* Rol + Fecha (solo lectura) */}
+                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                 <div>
-                                    <Badge variant="default" className="bg-indigo-600 hover:bg-indigo-700 capitalize">
-                                        {profile?.role || 'Desconocido'}
-                                    </Badge>
+                                    <span className={`flex items-center gap-1.5 ${capsLabel}`}>
+                                        <Shield className="h-3.5 w-3.5" /> Rol de usuario
+                                    </span>
+                                    <p className="mt-1.5 text-sm font-semibold capitalize text-ink">{profile?.role || 'Desconocido'}</p>
+                                </div>
+                                <div>
+                                    <span className={`flex items-center gap-1.5 ${capsLabel}`}>
+                                        <Calendar className="h-3.5 w-3.5" /> Miembro desde
+                                    </span>
+                                    <p className="mt-1.5 text-sm font-semibold text-ink">{formatDate(user?.created_at)}</p>
                                 </div>
                             </div>
-
-                            <div className="space-y-1 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-                                    <Calendar className="w-3.5 h-3.5" /> Miembro Desde
-                                </span>
-                                <p className="text-sm font-medium text-gray-900">{formatDate(user?.created_at)}</p>
-                            </div>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
 
-                <Card className="sm:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <KeyRound className="w-5 h-5 text-gray-900" />
+                    {/* Seguridad */}
+                    <div className="rounded-xl border border-hairline bg-card p-6 shadow-soft">
+                        <h3 className="flex items-center gap-2 font-heading text-lg font-semibold text-ink">
+                            <KeyRound className="h-5 w-5" />
                             Seguridad
-                        </CardTitle>
-                        <CardDescription>
-                            Opciones para mantener tu cuenta segura.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-lg bg-white">
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">Opciones para mantener tu cuenta segura.</p>
+
+                        <div className="mt-4 flex flex-col items-start justify-between gap-4 rounded-lg border border-hairline bg-secondary/40 p-4 sm:flex-row sm:items-center">
                             <div>
-                                <h3 className="text-sm font-semibold text-gray-900">Contraseña</h3>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    Te recomendamos usar una contraseña segura y no compartirla con nadie.
+                                <h4 className="text-sm font-semibold text-ink">Contraseña</h4>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Usa una contraseña segura y no la compartas con nadie.
                                 </p>
                             </div>
-                            <Button 
+                            <Button
                                 onClick={() => setIsPasswordModalOpen(true)}
-                                variant="outline" 
-                                className="shrink-0 w-full sm:w-auto border-gray-300 hover:bg-gray-50"
+                                variant="outline"
+                                className="w-full shrink-0 gap-2 sm:w-auto"
                             >
+                                <KeyRound className="h-4 w-4" />
                                 Cambiar Contraseña
                             </Button>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </div>
 
-            <PasswordChangeModal 
-                isOpen={isPasswordModalOpen} 
-                onClose={() => setIsPasswordModalOpen(false)} 
+            <PasswordChangeModal
+                isOpen={isPasswordModalOpen}
+                onClose={() => setIsPasswordModalOpen(false)}
             />
         </div>
     );
