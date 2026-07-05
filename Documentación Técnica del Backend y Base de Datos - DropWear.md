@@ -57,6 +57,7 @@ CREATE TABLE user\_profiles (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,  
     full\_name VARCHAR(100) NOT NULL,  
     role user\_role NOT NULL DEFAULT 'vendedor',  
+    is\_active BOOLEAN NOT NULL DEFAULT TRUE,  
     created\_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()  
 );
 

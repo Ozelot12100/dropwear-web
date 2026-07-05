@@ -16,7 +16,7 @@ Para que el próximo equipo de desarrollo o compañeros programadores puedan ent
 2. **[Arquitectura Backend, Base de Datos y Edge Functions](./Documentación%20Técnica%20del%20Backend%20y%20Base%20de%20Datos%20-%20DropWear.md)**
    El corazón del proyecto. Aquí encontrarás el diagrama exacto de nuestras tablas en Postgres, cómo funciona el RBAC (Socio, Vendedor, Superadmin, etc.), cómo manejamos la sincronización Realtime (WebSockets) y el uso detallado de nuestras Edge Functions (Deno).
 
-3. **[Hoja de Ruta (Lo que falta por construir)](./ROADMAP_MOBILE.md)**
+3. **[Hoja de Ruta (Lo que falta por construir)](./ROADMAP.md)**
    Conoce las funcionalidades futuras planeadas tanto para potenciar las ventas desde el celular (Pull to refresh, Swipe, escaner etc.) como las tareas gerenciales estratégicas desde PC (Cortes de caja, Analítica, Exportación a Excel).
 
 ---
@@ -24,7 +24,7 @@ Para que el próximo equipo de desarrollo o compañeros programadores puedan ent
 ## 🚀 Inicio Rápido (Quick Start)
 
 ### Requisitos Previos
-* Node.js v18+
+* Node.js v20+ (requerido por Vite 8)
 * Gestor de paquetes `npm` o `pnpm`
 * CLI de Supabase instalado (opcional, pero recomendado para desplegar Edge Functions)
 

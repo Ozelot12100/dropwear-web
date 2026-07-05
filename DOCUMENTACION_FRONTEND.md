@@ -18,11 +18,11 @@ Nuestra necesidad principal tecnológica es eliminar la fricción en la sincroni
 
 ## 2. Stack Tecnológico (Frontend)
 
-* **Core:** React 18, empaquetado y servido por Vite.
+* **Core:** React 19, empaquetado y servido por Vite.
 * **Lenguaje:** TypeScript estricto (no se permite el uso de `any` para las iteraciones de la Base de Datos).
 * **Estilos:** Tailwind CSS (v3) + Tailwind Merge y CLSX para manipulación dinámica de clases.
-* **Componentes Base:** [shadcn/ui](https://ui.shadcn.com/) (Instalado y configurado con Radix UI).
-* **Ruteo:** React Router DOM v6.
+* **Componentes Base:** [shadcn/ui](https://ui.shadcn.com/) (Instalado y configurado con Base UI, `@base-ui/react`).
+* **Ruteo:** React Router DOM v7.
 * **Gestor de Estado (Server-State):** TanStack React Query v5.
 * **BaaS (Backend):** `@supabase/supabase-js` para Base de datos (PostgreSQL), Autenticación y WebSockets (Realtime).
 
