@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usersService } from '../services/users';
 import type { UserProfile, UserRole } from '../types';
 import { Button } from '../components/ui/button';
@@ -11,8 +12,12 @@ import { UserPlus, ShieldAlert, Users, Key, UserX, UserCheck, AlertTriangle, Shi
 import { useAuth } from '../hooks';
 
 export default function StaffPage() {
-    const [users, setUsers] = useState<UserProfile[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const queryClient = useQueryClient();
+    const { data: users = [], isLoading, isError } = useQuery({
+        queryKey: ['users'],
+        queryFn: usersService.getUsers,
+    });
+    const [flash, setFlash] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [error, setError] = useState('');
@@ -52,21 +57,8 @@ export default function StaffPage() {
         role: 'socio' as UserRole
     });
 
-    const loadUsers = async () => {
-        try {
-            setIsLoading(true);
-            const data = await usersService.getUsers();
-            setUsers(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadUsers();
-    }, []);
+    // El listado se refresca invalidando la query ['users'] tras cada mutación.
+    const refetchUsers = () => queryClient.invalidateQueries({ queryKey: ['users'] });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -106,7 +98,7 @@ export default function StaffPage() {
         setIsSubmitting(true);
         try {
             await usersService.createUser(formData);
-            await loadUsers();
+            await refetchUsers();
             setCreateSuccess(true);
             setTimeout(() => {
                 setIsDialogOpen(false);
@@ -162,8 +154,9 @@ export default function StaffPage() {
             await usersService.toggleUserStatus(userToBan.id, banAction);
             setIsBanModalOpen(false);
             setUserToBan(null);
-            await loadUsers();
-            alert(`Usuario ${banAction === 'ban' ? 'bloqueado' : 'desbloqueado'} correctamente.`);
+            await refetchUsers();
+            setFlash(`Usuario ${banAction === 'ban' ? 'bloqueado' : 'desbloqueado'} correctamente.`);
+            setTimeout(() => setFlash(null), 3000);
         } catch (err) {
             setBanError(err instanceof Error ? err.message : 'Error al cambiar estado del usuario');
         } finally {
@@ -179,7 +172,7 @@ export default function StaffPage() {
         setIsChangingRole(true);
         try {
             await usersService.updateUserRole(userToChangeRole.id, newRole);
-            await loadUsers();
+            await refetchUsers();
             setIsRoleModalOpen(false);
             setUserToChangeRole(null);
             // Sin usar alert, feedback rápido en tabla o cerrando modal
@@ -192,6 +185,11 @@ export default function StaffPage() {
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-8">
+            {flash && (
+                <div className="bg-green-50 text-green-700 border border-green-200 p-3 rounded-md text-sm font-medium">
+                    {flash}
+                </div>
+            )}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-gray-100 rounded-lg">
@@ -491,7 +489,11 @@ export default function StaffPage() {
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="h-32 text-center text-gray-500">Cargando personal...</TableCell>
+                                <TableCell colSpan={5} className="h-32 text-center text-gray-500">Cargando personal...</TableCell>
+                            </TableRow>
+                        ) : isError ? (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-32 text-center text-red-500">Error al cargar el personal. Recarga la página.</TableCell>
                             </TableRow>
                         ) : users.length === 0 ? (
                             <TableRow>
