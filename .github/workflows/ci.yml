@@ -30,9 +30,6 @@ jobs:
       - name: Tests
         run: npm test
 
-      # Lint: informativo por ahora (hay deuda preexistente que se limpiará de
-      # forma incremental). Cuando quede en cero, quitar `continue-on-error`
-      # para volverlo un gate bloqueante.
+      # Lint: gate bloqueante (0 errores). Quedan warnings informativos.
       - name: Lint
         run: npm run lint
-        continue-on-error: true

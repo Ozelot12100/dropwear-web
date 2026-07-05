@@ -67,9 +67,9 @@ export function PasswordChangeModal({ isOpen, onClose }: PasswordChangeModalProp
       setTimeout(() => {
         handleClose();
       }, 2500);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error al actualizar contraseña:", err);
-      setError(err?.message || 'Ocurrió un error inesperado al actualizar la contraseña.');
+      setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado al actualizar la contraseña.');
     } finally {
       setLoading(false);
     }

@@ -112,8 +112,8 @@ export default function StaffPage() {
                 setIsDialogOpen(false);
                 resetCreateForm();
             }, 2000);
-        } catch (err: any) {
-            setError(err.message || 'Error al crear el usuario');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Error al crear el usuario');
         } finally {
             setIsSubmitting(false);
         }
@@ -145,8 +145,8 @@ export default function StaffPage() {
                 setResetConfirmPassword('');
                 setResetSuccess(false);
             }, 2000);
-        } catch (err: any) {
-            setResetError(err.message || 'Error al restablecer contraseña');
+        } catch (err) {
+            setResetError(err instanceof Error ? err.message : 'Error al restablecer contraseña');
         } finally {
             setIsResetting(false);
         }
@@ -164,8 +164,8 @@ export default function StaffPage() {
             setUserToBan(null);
             await loadUsers();
             alert(`Usuario ${banAction === 'ban' ? 'bloqueado' : 'desbloqueado'} correctamente.`);
-        } catch (err: any) {
-            setBanError(err.message || 'Error al cambiar estado del usuario');
+        } catch (err) {
+            setBanError(err instanceof Error ? err.message : 'Error al cambiar estado del usuario');
         } finally {
             setIsBanning(false);
         }
@@ -183,8 +183,8 @@ export default function StaffPage() {
             setIsRoleModalOpen(false);
             setUserToChangeRole(null);
             // Sin usar alert, feedback rápido en tabla o cerrando modal
-        } catch (err: any) {
-            setRoleError(err.message || 'Error al cambiar rol');
+        } catch (err) {
+            setRoleError(err instanceof Error ? err.message : 'Error al cambiar rol');
         } finally {
             setIsChangingRole(false);
         }

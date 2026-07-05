@@ -20,6 +20,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Función interna para obtener el rol y datos suplementarios atados a la cuenta.
+    // Se declara antes del efecto que la usa.
+    const fetchUserProfile = async (userId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+            if (error) {
+                console.error('Error fetching user profile:', error);
+                setProfile(null);
+                return;
+            }
+
+            setProfile(data);
+        } catch (error) {
+            console.error('Unexpected error fetching profile:', error);
+            setProfile(null);
+        }
+    };
+
     useEffect(() => {
         // 1. Obtención inicial de la sesión al montar la app
         const fetchSession = async () => {
@@ -60,28 +83,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, []);
 
-    // Función interna para obtener el rol y datos suplementarios atados a la cuenta
-    const fetchUserProfile = async (userId: string) => {
-        try {
-            const { data, error } = await supabase
-                .from('user_profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
-
-            if (error) {
-                console.error('Error fetching user profile:', error);
-                setProfile(null);
-                return;
-            }
-
-            setProfile(data);
-        } catch (error) {
-            console.error('Unexpected error fetching profile:', error);
-            setProfile(null);
-        }
-    };
-
     const refreshProfile = async () => {
         if (user?.id) {
             await fetchUserProfile(user.id);
@@ -106,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
     const context = useContext(AuthContext);
     if (context === undefined) {

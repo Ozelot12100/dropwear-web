@@ -40,8 +40,8 @@ export default function ProfilePage() {
             
             // Ocultar el mensaje de éxito después de 3 segundos
             setTimeout(() => setMessage(null), 3000);
-        } catch (error: any) {
-            setMessage({ text: error.message || 'Error al actualizar nombre.', type: 'error' });
+        } catch (error) {
+            setMessage({ text: error instanceof Error ? error.message : 'Error al actualizar nombre.', type: 'error' });
         } finally {
             setIsSaving(false);
         }

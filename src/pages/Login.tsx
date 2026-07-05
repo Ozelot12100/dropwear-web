@@ -34,7 +34,9 @@ export default function Login() {
             });
 
             // Usamos Promise.race para no quedarnos atascados infinitamente
-            const response: any = await Promise.race([authPromise, timeoutPromise]);
+            // El timeout solo rechaza (Promise<never>), así que el valor resuelto
+            // siempre es la respuesta de signInWithPassword.
+            const response = await Promise.race([authPromise, timeoutPromise]) as Awaited<typeof authPromise>;
 
             if (response?.error) {
                 // Si la respuesta regresó pero con error de Supabase
@@ -54,9 +56,9 @@ export default function Login() {
                 setError('No se pudo establecer la sesión. Respuesta vacía del servidor.');
                 setLoading(false);
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error("Error inesperado en login:", err);
-            setError(`Error del sistema: ${err.message || 'Bloqueo de red o caché activo.'}`);
+            setError(`Error del sistema: ${err instanceof Error ? err.message : 'Bloqueo de red o caché activo.'}`);
             setLoading(false);
         }
     };
