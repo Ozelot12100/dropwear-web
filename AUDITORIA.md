@@ -81,3 +81,22 @@ Registro de la auditoría técnica realizada el **5 de julio de 2026** (código,
 - M9 · Prettier + husky/lint-staged; fijar `engines` de Node.
 - L3 · fijar versiones exactas del stack y cadencia de actualización deliberada.
 - L4 · accesibilidad (aria-labels, `lang="es"`, roles de tabs).
+
+---
+
+## Evaluación del stack tecnológico (5-jul-2026)
+
+**Veredicto: el stack es el correcto para DropWear. No conviene migrar el núcleo** (React + Supabase + Vercel). Sería caro y sin beneficio real. Lo que conviene son ajustes, no migraciones.
+
+**Por qué encaja:**
+- **Supabase** (Postgres + Auth + Realtime + Edge Functions) — la mejor decisión: el dominio es relacional (productos → inventario → ventas → bitácora con integridad referencial), Realtime cubre el requisito de <300 ms, y Auth+RLS dan seguridad sin backend propio. Firebase (NoSQL) sería peor; un backend propio sería más trabajo y operación para el mismo resultado.
+- **React + Vite + TypeScript** — estándar de industria, productivo, ecosistema enorme; TS estricto protege el código que maneja dinero.
+- **TanStack Query + React Router + Tailwind + shadcn** — combinación moderna y sólida para una SPA.
+- **Vercel** — hosting simple para SPA estática con auto-deploy.
+
+**Ajustes recomendados (no migraciones):**
+1. **Versiones bleeding-edge (riesgo real):** Vite 8, TS 6, ESLint 10, React 19, Base UI 1.x son muy nuevos; para un equipo chico en producción implica menos soluciones documentadas y más bugs de ecosistema (ya ocurrió con el `package-lock` Windows↔Linux en CI). → Fijar versiones exactas y una cadencia de actualización deliberada; bajar a estables (Vite 7, TS 5.x) si algo se rompe. (Ver hallazgo L3.)
+2. **Planes gratis vs. negocio real:** para una tienda que factura, el free tier es frágil (Supabase pausa proyectos a los 7 días; Vercel Hobby prohíbe uso comercial). → **Supabase Pro (~$25/mes)** por los backups automáticos (crítico para datos de ventas); y **Vercel Pro** o mover el hosting a **Cloudflare Pages / Netlify** (la SPA es portátil).
+3. **PWA, no app nativa:** el roadmap ya lo pide; es el camino correcto (instalable, offline parcial) sin reescribir nada.
+
+**Cuándo reconsiderar (a futuro):** Next.js solo si se quiere una tienda pública con SEO; Expo/React Native solo si se necesita escáner de barras muy fluido o push nativo (reutilizaría React + Supabase).
