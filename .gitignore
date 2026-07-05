@@ -39,3 +39,5 @@ vite.config.ts.timestamp-*
 .npm
 .eslintcache
 .stylelintcache
+.vercel
+.env*

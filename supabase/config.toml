@@ -415,3 +415,15 @@ entrypoint = "./functions/toggle-user-status/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/toggle-user-status/*.html" ]
+
+[functions.update-profile-name]
+enabled = true
+verify_jwt = true
+import_map = "./functions/update-profile-name/deno.json"
+entrypoint = "./functions/update-profile-name/index.ts"
+
+[functions.update-user-role]
+enabled = true
+verify_jwt = true
+import_map = "./functions/update-user-role/deno.json"
+entrypoint = "./functions/update-user-role/index.ts"
