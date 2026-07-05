@@ -9,7 +9,7 @@ import { Label } from '../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
 
 // ── Estilos compartidos (diseño Stitch) ───────────────────────────────────────
 const selectClass =
@@ -221,6 +221,8 @@ function ProductsTab() {
     const [price, setPrice] = useState('');
     const [brandId, setBrandId] = useState('');
     const [catId, setCatId] = useState('');
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const [imageUploading, setImageUploading] = useState(false);
     const [toDelete, setToDelete] = useState<ProductWithRelations | null>(null);
     const [delErr, setDelErr] = useState<string | null>(null);
 
@@ -228,17 +230,34 @@ function ProductsTab() {
     const { data: brands } = useQuery({ queryKey: ['brands'], queryFn: catalogService.getBrands });
     const { data: cats } = useQuery({ queryKey: ['categories'], queryFn: catalogService.getCategories });
 
-    const reset = () => { setName(''); setDesc(''); setPrice(''); setBrandId(''); setCatId(''); setErr(null); };
+    const reset = () => { setName(''); setDesc(''); setPrice(''); setBrandId(''); setCatId(''); setImageUrl(null); setErr(null); };
     const openCreate = () => { setEditing(null); reset(); setOpen(true); };
     const openEdit = (p: ProductWithRelations) => {
         setEditing(p); setName(p.name); setDesc(p.description || '');
         setPrice(String(p.base_price)); setBrandId(String(p.brand_id)); setCatId(String(p.category_id));
+        setImageUrl(p.image_url ?? null);
         setErr(null); setOpen(true);
+    };
+
+    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setErr(null);
+        setImageUploading(true);
+        try {
+            const url = await catalogService.uploadProductImage(file);
+            setImageUrl(url);
+        } catch (e2) {
+            setErr(e2 instanceof Error ? e2.message : 'Error al subir la imagen.');
+        } finally {
+            setImageUploading(false);
+            e.target.value = ''; // permitir re-subir el mismo archivo
+        }
     };
 
     const save = useMutation({
         mutationFn: () => {
-            const payload = { name, description: desc || null, base_price: parseFloat(price), brand_id: Number(brandId), category_id: Number(catId) };
+            const payload = { name, description: desc || null, base_price: parseFloat(price), brand_id: Number(brandId), category_id: Number(catId), image_url: imageUrl };
             return editing ? catalogService.updateProduct(editing.id, payload) : catalogService.createProduct(payload);
         },
         onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); setOpen(false); },
@@ -275,7 +294,16 @@ function ProductsTab() {
                         {products?.map(p => (
                             <TableRow key={p.id} className="border-hairline hover:bg-secondary/60">
                                 <TableCell className="w-16 font-mono text-muted-foreground">#{p.id}</TableCell>
-                                <TableCell className="font-medium text-ink">{p.name}</TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-hairline bg-secondary">
+                                            {p.image_url
+                                                ? <img src={p.image_url} alt="" className="h-full w-full object-cover" />
+                                                : <ImageIcon className="h-4 w-4 text-muted-foreground" />}
+                                        </div>
+                                        <span className="font-medium text-ink">{p.name}</span>
+                                    </div>
+                                </TableCell>
                                 <TableCell className="text-muted-foreground">{p.brands?.name ?? '—'}</TableCell>
                                 <TableCell>
                                     {p.categories?.name
@@ -296,6 +324,30 @@ function ProductsTab() {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle>{editing ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle></DialogHeader>
                     <div className="grid gap-4 py-2">
+                        {/* Foto del producto */}
+                        <div className="grid gap-1.5">
+                            <Label className={capsHead}>Foto (opcional)</Label>
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-hairline bg-secondary">
+                                    {imageUrl
+                                        ? <img src={imageUrl} alt="Vista previa" className="h-full w-full object-cover" />
+                                        : <ImageIcon className="h-6 w-6 text-muted-foreground" />}
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-hairline bg-card px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-secondary ${imageUploading ? 'pointer-events-none opacity-60' : ''}`}>
+                                        {imageUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                        {imageUploading ? 'Subiendo...' : (imageUrl ? 'Cambiar foto' : 'Subir foto')}
+                                        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageChange} disabled={imageUploading} />
+                                    </label>
+                                    {imageUrl && !imageUploading && (
+                                        <button type="button" onClick={() => setImageUrl(null)} className="text-left text-xs font-medium text-status-returned hover:underline">
+                                            Quitar foto
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">JPG, PNG o WebP · máx. 5 MB</p>
+                        </div>
                         <div className="grid gap-1.5">
                             <Label className={capsHead}>Nombre *</Label>
                             <Input value={name} onChange={e => setName(e.target.value)} placeholder="ej. Short Deportivo, Playera Básica" maxLength={100} className="h-11" />

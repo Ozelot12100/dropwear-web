@@ -96,6 +96,7 @@ export const catalogService = {
                 base_price,
                 brand_id,
                 category_id,
+                image_url,
                 created_at,
                 brands ( name ),
                 categories ( name )
@@ -105,12 +106,27 @@ export const catalogService = {
         return data as unknown as ProductWithRelations[];
     },
 
+    // Sube una imagen al bucket público `product-images` y devuelve su URL pública.
+    // RLS restringe la escritura a socio/superadmin; el bucket limita a 5 MB y jpg/png/webp.
+    async uploadProductImage(file: File): Promise<string> {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+        // Nombre único por archivo (crypto.randomUUID está disponible en el navegador).
+        const path = `${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage
+            .from('product-images')
+            .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+        if (error) throw error;
+        const { data } = supabase.storage.from('product-images').getPublicUrl(path);
+        return data.publicUrl;
+    },
+
     async createProduct(payload: {
         name: string;
         description?: string | null;
         base_price: number;
         brand_id: number;
         category_id: number;
+        image_url?: string | null;
     }): Promise<void> {
         const { error } = await supabase
             .from('products')
@@ -120,6 +136,7 @@ export const catalogService = {
                 base_price: payload.base_price,
                 brand_id: payload.brand_id,
                 category_id: payload.category_id,
+                image_url: payload.image_url ?? null,
             });
         if (error) throw error;
     },
@@ -132,6 +149,7 @@ export const catalogService = {
             base_price?: number;
             brand_id?: number;
             category_id?: number;
+            image_url?: string | null;
         }
     ): Promise<void> {
         const { error } = await supabase

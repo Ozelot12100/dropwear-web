@@ -24,6 +24,7 @@ export interface InventoryItemWithRelations extends InventoryItem {
         id: number;
         name: string;
         base_price: number;
+        image_url: string | null;
         brands: { name: string } | null;
         categories: { name: string } | null;
     } | null;
