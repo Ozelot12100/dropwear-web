@@ -42,3 +42,8 @@ vite.config.ts.timestamp-*
 .vercel
 .env*
 !.env.example
+
+# Artefactos locales (no versionar)
+*.zip
+song_names.txt
+.claude/worktrees/
