@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
+import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Pencil, Trash2, Plus } from 'lucide-react';
 
@@ -24,6 +25,8 @@ function BrandsTab() {
     const [name, setName] = useState('');
     const [open, setOpen] = useState(false);
     const [err, setErr] = useState<string | null>(null);
+    const [toDelete, setToDelete] = useState<Brand | null>(null);
+    const [delErr, setDelErr] = useState<string | null>(null);
 
     const { data: brands, isLoading } = useQuery({ queryKey: ['brands'], queryFn: catalogService.getBrands });
     const save = useMutation({
@@ -33,8 +36,8 @@ function BrandsTab() {
     });
     const del = useMutation({
         mutationFn: (id: number) => catalogService.deleteBrand(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ['brands'] }),
-        onError: (e: Error) => alert(parseFKError(e.message)),
+        onSuccess: () => { qc.invalidateQueries({ queryKey: ['brands'] }); setToDelete(null); },
+        onError: (e: Error) => setDelErr(parseFKError(e.message)),
     });
 
     const openCreate = () => { setEditing(null); setName(''); setErr(null); setOpen(true); };
@@ -56,7 +59,7 @@ function BrandsTab() {
                                 <TableCell className="font-medium">{b.name}</TableCell>
                                 <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" onClick={() => openEdit(b)}><Pencil className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => { if (confirm(`¿Eliminar "${b.name}"?`)) del.mutate(b.id); }}><Trash2 className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => { setDelErr(null); setToDelete(b); }}><Trash2 className="h-4 w-4" /></Button>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -78,6 +81,15 @@ function BrandsTab() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <ConfirmDialog
+                open={!!toDelete}
+                title="Eliminar marca"
+                description={`¿Eliminar "${toDelete?.name}"? Esta acción no se puede deshacer.`}
+                isPending={del.isPending}
+                error={delErr}
+                onConfirm={() => toDelete && del.mutate(toDelete.id)}
+                onOpenChange={(o) => { if (!o) { setToDelete(null); setDelErr(null); } }}
+            />
         </div>
     );
 }
@@ -89,6 +101,8 @@ function CategoriesTab() {
     const [name, setName] = useState('');
     const [open, setOpen] = useState(false);
     const [err, setErr] = useState<string | null>(null);
+    const [toDelete, setToDelete] = useState<Category | null>(null);
+    const [delErr, setDelErr] = useState<string | null>(null);
 
     const { data: cats, isLoading } = useQuery({ queryKey: ['categories'], queryFn: catalogService.getCategories });
     const save = useMutation({
@@ -98,8 +112,8 @@ function CategoriesTab() {
     });
     const del = useMutation({
         mutationFn: (id: number) => catalogService.deleteCategory(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ['categories'] }),
-        onError: (e: Error) => alert(parseFKError(e.message)),
+        onSuccess: () => { qc.invalidateQueries({ queryKey: ['categories'] }); setToDelete(null); },
+        onError: (e: Error) => setDelErr(parseFKError(e.message)),
     });
 
     const openCreate = () => { setEditing(null); setName(''); setErr(null); setOpen(true); };
@@ -121,7 +135,7 @@ function CategoriesTab() {
                                 <TableCell className="font-medium">{c.name}</TableCell>
                                 <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => { if (confirm(`¿Eliminar "${c.name}"?`)) del.mutate(c.id); }}><Trash2 className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => { setDelErr(null); setToDelete(c); }}><Trash2 className="h-4 w-4" /></Button>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -143,6 +157,15 @@ function CategoriesTab() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <ConfirmDialog
+                open={!!toDelete}
+                title="Eliminar categoría"
+                description={`¿Eliminar "${toDelete?.name}"? Esta acción no se puede deshacer.`}
+                isPending={del.isPending}
+                error={delErr}
+                onConfirm={() => toDelete && del.mutate(toDelete.id)}
+                onOpenChange={(o) => { if (!o) { setToDelete(null); setDelErr(null); } }}
+            />
         </div>
     );
 }
@@ -158,6 +181,8 @@ function ProductsTab() {
     const [price, setPrice] = useState('');
     const [brandId, setBrandId] = useState('');
     const [catId, setCatId] = useState('');
+    const [toDelete, setToDelete] = useState<ProductWithRelations | null>(null);
+    const [delErr, setDelErr] = useState<string | null>(null);
 
     const { data: products, isLoading } = useQuery({ queryKey: ['products'], queryFn: catalogService.getProducts });
     const { data: brands } = useQuery({ queryKey: ['brands'], queryFn: catalogService.getBrands });
@@ -182,8 +207,8 @@ function ProductsTab() {
 
     const del = useMutation({
         mutationFn: (id: number) => catalogService.deleteProduct(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
-        onError: (e: Error) => alert(parseFKError(e.message)),
+        onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); setToDelete(null); },
+        onError: (e: Error) => setDelErr(parseFKError(e.message)),
     });
 
     const isValid = name.trim() && brandId && catId && parseFloat(price) > 0;
@@ -215,7 +240,7 @@ function ProductsTab() {
                                 <TableCell className="text-right font-medium">${p.base_price}</TableCell>
                                 <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => { if (confirm(`¿Eliminar "${p.name}"?\n⚠️ Esto eliminará TODAS sus prendas físicas en inventario.`)) del.mutate(p.id); }}><Trash2 className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => { setDelErr(null); setToDelete(p); }}><Trash2 className="h-4 w-4" /></Button>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -263,6 +288,16 @@ function ProductsTab() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <ConfirmDialog
+                open={!!toDelete}
+                title="Eliminar producto"
+                description={`¿Eliminar "${toDelete?.name}"?\n⚠️ Esto eliminará TAMBIÉN todas sus prendas físicas en inventario.`}
+                confirmLabel="Eliminar producto"
+                isPending={del.isPending}
+                error={delErr}
+                onConfirm={() => toDelete && del.mutate(toDelete.id)}
+                onOpenChange={(o) => { if (!o) { setToDelete(null); setDelErr(null); } }}
+            />
         </div>
     );
 }
