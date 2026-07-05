@@ -88,7 +88,6 @@ export function EditItemModal({ item, isOpen, onClose }: EditItemModalProps) {
                 productId: Number(productId),
                 size,
                 color: color.trim(),
-                userId: user.id,
             });
 
             await Promise.race([updatePromise, timeoutPromise]);

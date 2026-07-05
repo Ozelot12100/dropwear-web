@@ -80,7 +80,6 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                 itemId: item.id,
                 newStatus: selectedStatus as ItemStatus,
                 priceSold: parsedPrice,
-                userId: user.id,
                 notes: notes.trim() || undefined,
             });
 

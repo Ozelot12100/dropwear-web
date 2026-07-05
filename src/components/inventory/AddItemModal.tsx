@@ -73,7 +73,6 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
                 productId: Number(productId),
                 size,
                 color: color.trim(),
-                userId: user.id,
             });
         },
         onSuccess: () => {

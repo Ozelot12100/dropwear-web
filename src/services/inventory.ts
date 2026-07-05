@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { ItemStatus, LogAction, InventoryItemWithRelations } from '../types';
+import type { ItemStatus, InventoryItemWithRelations } from '../types';
 
 export const inventoryService = {
     /**
@@ -32,192 +32,80 @@ export const inventoryService = {
     },
 
     /**
-     * Ejecuta la transacción de cambio de estado de un ítem e inserta el log obligatorio.
+     * Cambia el estado de un artículo (venta / apartado / devolución) de forma
+     * ATÓMICA vía la función RPC `change_item_status`: bloquea la fila, actualiza
+     * el ítem e inserta el log en una sola transacción de Postgres. Elimina la
+     * doble venta y el estado inconsistente. El actor lo sella el servidor.
      */
     async updateItemStatus({
         itemId,
         newStatus,
         priceSold,
-        userId,
         notes,
     }: {
         itemId: number;
         newStatus: ItemStatus;
         priceSold: number | null;
-        userId: string;
         notes?: string;
     }) {
-        // 1. Obtener el estado previo para el log
-        const { data: currentItem, error: fetchError } = await supabase
-            .from('inventory_items')
-            .select('status')
-            .eq('id', itemId)
-            .single();
+        const { error } = await supabase.rpc('change_item_status', {
+            p_item_id: itemId,
+            p_new_status: newStatus,
+            p_price_sold: newStatus === 'vendido' ? (priceSold ?? undefined) : undefined,
+            p_notes: notes?.trim() || undefined,
+        });
 
-        if (fetchError) throw fetchError;
-
-        // 2. Actualizar el estado del ítem
-        const { error: updateError } = await supabase
-            .from('inventory_items')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .update({
-                status: newStatus,
-                price_sold: newStatus === 'vendido' ? priceSold : null,
-                updated_by: userId,
-                updated_at: new Date().toISOString(),
-            } as never)
-            .eq('id', itemId);
-
-        if (updateError) throw updateError;
-
-        // 3. Registrar de forma inmutable el evento transaccional
-        let actionType: LogAction = 'actualizacion_estado';
-        if (newStatus === 'vendido') actionType = 'venta';
-        else if (newStatus === 'apartado') actionType = 'apartado';
-        else if (newStatus === 'devuelto') actionType = 'devolucion';
-
-        const { error: logError } = await supabase
-            .from('inventory_logs')
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .insert({
-                item_id: itemId,
-                partner_id: userId,
-                action: actionType,
-                previous_status: (currentItem as { status: ItemStatus }).status,
-                new_status: newStatus,
-                notes: notes || null,
-            } as never);
-
-        if (logError) {
-            console.error('Error al insertar el log:', logError);
-            throw new Error("Ítem actualizado, pero falló el registro en la bitácora.");
-        }
-
+        if (error) throw error;
         return true;
     },
 
     /**
-     * Da de alta un artículo físico nuevo en el inventario.
-     * Por regla de negocio: status por defecto es 'disponible'.
-     * Siempre inserta el log de auditoría con action = 'creacion'.
+     * Da de alta un artículo físico nuevo de forma atómica (item + log de
+     * creación) vía la función RPC `add_inventory_item`. Por regla de negocio
+     * el status inicial es 'disponible'.
      */
     async addItem({
         productId,
         size,
         color,
-        userId,
     }: {
         productId: number;
         size: string;
         color: string;
-        userId: string;
     }) {
-        // 1. Insertar el ítem físico (status 'disponible' por default del esquema)
-        const { data: newItem, error: insertError } = await supabase
-            .from('inventory_items')
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .insert({
-                product_id: productId,
-                size: size.trim().toUpperCase(),
-                color: color.trim().toLowerCase(),
-                updated_by: userId,
-            } as never)
-            .select('id')
-            .single();
+        const { data, error } = await supabase.rpc('add_inventory_item', {
+            p_product_id: productId,
+            p_size: size,
+            p_color: color,
+        });
 
-        if (insertError) throw insertError;
-
-        // 2. Registrar el evento de creación en la bitácora (inmutable)
-        const { error: logError } = await supabase
-            .from('inventory_logs')
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .insert({
-                item_id: (newItem as { id: number }).id,
-                partner_id: userId,
-                action: 'creacion' as LogAction,
-                previous_status: null,
-                new_status: 'disponible' as ItemStatus,
-                notes: null,
-            } as never);
-
-        if (logError) {
-            console.error('Error al registrar log de creación:', logError);
-            throw new Error('Prenda agregada, pero falló el registro en la bitácora.');
-        }
-
-        return newItem;
+        if (error) throw error;
+        return data;
     },
 
     /**
-     * Corrige los detalles físicos de un artículo (Producto, Talla, Color).
-     * Requiere insertar un log explicando la edición.
+     * Corrige los detalles físicos de un artículo (Producto, Talla, Color) de
+     * forma atómica (update + log) vía la función RPC `update_item_details`.
      */
     async updateItemDetails({
         itemId,
         productId,
         size,
         color,
-        userId,
     }: {
         itemId: number;
         productId: number;
         size: string;
         color: string;
-        userId: string;
     }) {
-        // 1. Obtener los datos previos para documentar el cambio en la bitácora
-        const { data: currentItem, error: fetchError } = await supabase
-            .from('inventory_items')
-            .select(`
-                status,
-                size,
-                color,
-                products ( id, name )
-            `)
-            .eq('id', itemId)
-            .single();
+        const { error } = await supabase.rpc('update_item_details', {
+            p_item_id: itemId,
+            p_product_id: productId,
+            p_size: size,
+            p_color: color,
+        });
 
-        if (fetchError) throw fetchError;
-
-        // 2. Actualizar las propiedades del ítem
-        const { error: updateError } = await supabase
-            .from('inventory_items')
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .update({
-                product_id: productId,
-                size: size.trim().toUpperCase(),
-                color: color.trim().toLowerCase(),
-                updated_by: userId,
-                updated_at: new Date().toISOString(),
-            } as never)
-            .eq('id', itemId);
-
-        if (updateError) throw updateError;
-
-        // 3. Documentar en la bitácora usando el action "actualizacion_estado" 
-        // pero especificando en la "notes" que fue una corrección de edición de detalles
-        const oldSize = (currentItem as any).size;
-        const oldColor = (currentItem as any).color;
-        const status = (currentItem as any).status;
-        const note = `Corrección de detalles (Antes -> Talla: ${oldSize}, Color: ${oldColor})`;
-
-        const { error: logError } = await supabase
-            .from('inventory_logs')
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .insert({
-                item_id: itemId,
-                partner_id: userId,
-                action: 'actualizacion_estado' as LogAction,
-                previous_status: status as ItemStatus,
-                new_status: status as ItemStatus,
-                notes: note,
-            } as never);
-
-        if (logError) {
-            console.error('Error al insertar el log de edición:', logError);
-            throw new Error("Prenda corregida, pero falló el registro en la bitácora.");
-        }
-
+        if (error) throw error;
         return true;
     },
 };
