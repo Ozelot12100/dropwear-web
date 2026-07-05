@@ -16,9 +16,14 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Tag } from 'lucide-react';
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'ÚNICA'];
 const COLOR_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/;
+
+const selectClass =
+    'flex h-11 w-full items-center justify-between rounded-lg border border-input bg-card px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
+const capsLabel = 'text-[11px] font-semibold uppercase tracking-wider text-muted-foreground';
 
 interface EditItemModalProps {
     item: InventoryItemWithRelations | null;
@@ -113,23 +118,25 @@ export function EditItemModal({ item, isOpen, onClose }: EditItemModalProps) {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-[460px]">
+            <DialogContent className="sm:max-w-[480px]">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
-                        <DialogTitle>Editar Prenda #{item.id}</DialogTitle>
+                        <DialogTitle className="text-lg">
+                            Editar Prenda <span className="font-mono">#{item.id}</span>
+                        </DialogTitle>
                         <DialogDescription>
                             Modifica los detalles físicos erróneos de la prenda.
                             Este cambio quedará registrado en la bitácora.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
+                    <div className="grid gap-5 py-4">
                         {/* Selector de Producto */}
                         <div className="grid gap-2">
-                            <Label htmlFor="edit-product">Producto del Catálogo *</Label>
+                            <Label htmlFor="edit-product" className={capsLabel}>Producto del catálogo *</Label>
                             <select
                                 id="edit-product"
-                                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                className={selectClass}
                                 value={productId}
                                 onChange={(e) => setProductId(e.target.value)}
                                 required
@@ -145,35 +152,40 @@ export function EditItemModal({ item, isOpen, onClose }: EditItemModalProps) {
                                 ))}
                             </select>
                             {selectedProduct && (
-                                <p className="text-xs text-muted-foreground">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Tag className="h-3.5 w-3.5 text-brand" />
                                     Categoría: {selectedProduct.categories?.name}
                                     {selectedProduct.description && ` · ${selectedProduct.description}`}
                                 </p>
                             )}
                         </div>
 
-                        {/* Selector de Talla */}
+                        {/* Selector de Talla (pills) */}
                         <div className="grid gap-2">
-                            <Label htmlFor="edit-size">Talla *</Label>
-                            <select
-                                id="edit-size"
-                                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                value={size}
-                                onChange={(e) => setSize(e.target.value)}
-                                required
-                            >
-                                <option value="" disabled>Selecciona una talla...</option>
+                            <Label className={capsLabel}>Talla *</Label>
+                            <div className="flex flex-wrap gap-2">
                                 {SIZES.map((s) => (
-                                    <option key={s} value={s}>{s}</option>
+                                    <button
+                                        key={s}
+                                        type="button"
+                                        onClick={() => setSize(s)}
+                                        className={`rounded-lg px-4 py-2 font-mono text-sm font-bold uppercase transition-all active:scale-95 ${size === s
+                                            ? 'bg-ink text-white'
+                                            : 'bg-secondary text-ink hover:bg-accent'
+                                            }`}
+                                    >
+                                        {s}
+                                    </button>
                                 ))}
-                            </select>
+                            </div>
                         </div>
 
                         {/* Input de Color */}
                         <div className="grid gap-2">
-                            <Label htmlFor="edit-color">
-                                Color * <span className="text-xs text-muted-foreground font-normal">(solo letras, mín. 3)</span>
-                            </Label>
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="edit-color" className={capsLabel}>Color *</Label>
+                                <span className="font-mono text-xs text-muted-foreground">{color.length}/30</span>
+                            </div>
                             <Input
                                 id="edit-color"
                                 type="text"
@@ -182,13 +194,14 @@ export function EditItemModal({ item, isOpen, onClose }: EditItemModalProps) {
                                 onChange={(e) => setColor(e.target.value)}
                                 required
                                 maxLength={30}
+                                className="h-11"
                             />
-                            <p className="text-xs text-muted-foreground text-right">{color.length}/30</p>
+                            <p className="text-xs italic text-muted-foreground">Solo letras, mín. 3</p>
                         </div>
 
                         {/* Bloque de error */}
                         {error && (
-                            <div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-100">
+                            <div className="rounded-lg border border-status-returned/30 bg-status-returned/10 p-3 text-sm text-status-returned">
                                 {error}
                             </div>
                         )}
@@ -204,7 +217,7 @@ export function EditItemModal({ item, isOpen, onClose }: EditItemModalProps) {
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={mutation.isPending || loadingProducts}>
-                            {mutation.isPending ? 'Guardando Correciones...' : 'Confirmar Cambios'}
+                            {mutation.isPending ? 'Guardando Correcciones...' : 'Confirmar Cambios'}
                         </Button>
                     </DialogFooter>
                 </form>

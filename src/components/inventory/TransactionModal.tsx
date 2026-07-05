@@ -15,9 +15,21 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Badge } from '../ui/badge';
 
 const MAX_NOTES_LENGTH = 200;
+
+// Metadatos de estatus (diseño Stitch): punto + tinte por estado
+const STATUS_META: Record<string, { label: string; dot: string; text: string; chip: string }> = {
+    disponible: { label: 'Disponible', dot: 'bg-status-available', text: 'text-status-available', chip: 'bg-status-available/10' },
+    apartado: { label: 'Apartado', dot: 'bg-status-reserved', text: 'text-status-reserved', chip: 'bg-status-reserved/10' },
+    vendido: { label: 'Vendido', dot: 'bg-status-sold', text: 'text-status-sold', chip: 'bg-status-sold/10' },
+    devuelto: { label: 'Devuelto', dot: 'bg-status-returned', text: 'text-status-returned', chip: 'bg-status-returned/10' },
+};
+
+const STATUS_OPTIONS: ItemStatus[] = ['disponible', 'apartado', 'vendido', 'devuelto'];
+
+const formatCurrency = (amount: number | null | undefined) =>
+    amount == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 
 interface TransactionModalProps {
     item: InventoryItemWithRelations | null;
@@ -103,45 +115,72 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
 
     if (!item) return null;
 
+    const currentMeta = STATUS_META[item.status];
+
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[460px]">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
-                        <DialogTitle>Actualizar Artículo #{item.id}</DialogTitle>
+                        <DialogTitle className="text-lg">
+                            Actualizar Artículo <span className="font-mono">#{item.id}</span>
+                        </DialogTitle>
                         <DialogDescription>
-                            {item.products?.name} - {item.products?.brands?.name} (Talla: {item.size.toUpperCase()})
+                            {item.products?.name} · {item.products?.brands?.name} (Talla: {item.size.toUpperCase()})
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
-                        <div className="flex items-center gap-4">
-                            <Label>Estatus Actual:</Label>
-                            <Badge variant="outline" className="uppercase">{item.status}</Badge>
+                    <div className="grid gap-5 py-4">
+                        {/* Estatus actual */}
+                        <div className="flex items-center justify-between">
+                            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Estatus actual
+                            </Label>
+                            {currentMeta && (
+                                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${currentMeta.chip} ${currentMeta.text}`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${currentMeta.dot}`} />
+                                    {currentMeta.label}
+                                </span>
+                            )}
                         </div>
 
+                        {/* Nuevo estatus — rejilla 2×2 */}
                         <div className="grid gap-2">
-                            <Label htmlFor="status">Nuevo Estatus</Label>
-                            <select
-                                id="status"
-                                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                value={selectedStatus}
-                                onChange={(e) => setSelectedStatus(e.target.value as ItemStatus)}
-                                required
-                            >
-                                <option value="" disabled>Selecciona una opción...</option>
-                                <option value="disponible" disabled={item.status === 'disponible'}>🟢 Disponible</option>
-                                <option value="apartado" disabled={item.status === 'apartado'}>🟡 Apartado</option>
-                                <option value="vendido" disabled={item.status === 'vendido'}>🔵 Vendido</option>
-                                <option value="devuelto" disabled={item.status === 'devuelto'}>🔴 Devuelto</option>
-                            </select>
+                            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Nuevo estatus
+                            </Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {STATUS_OPTIONS.map((value) => {
+                                    const meta = STATUS_META[value]!;
+                                    const isCurrent = item.status === value;
+                                    const isSelected = selectedStatus === value;
+                                    return (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            disabled={isCurrent}
+                                            onClick={() => setSelectedStatus(value)}
+                                            className={`flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all ${isSelected
+                                                ? 'border-ink bg-secondary ring-1 ring-ink'
+                                                : 'border-hairline bg-card hover:bg-secondary'
+                                                } ${isCurrent ? 'cursor-not-allowed opacity-40' : 'active:scale-[0.98]'}`}
+                                        >
+                                            <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
+                                            <span className="text-sm font-medium text-ink">{meta.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
 
-                        {/* Condición Crítica: Exigir cobro si se marca como Vendido */}
+                        {/* Condición crítica: exigir cobro si se marca como Vendido */}
                         {selectedStatus === 'vendido' && (
-                            <div className="grid gap-2 p-3 bg-indigo-50 rounded-md border border-indigo-100">
-                                <Label htmlFor="priceSold" className="text-indigo-900">
-                                    Precio Cobrado (Recomendado: ${item.products?.base_price})
+                            <div className="grid gap-2 rounded-xl border border-hairline bg-secondary p-3">
+                                <Label htmlFor="priceSold" className="text-sm font-medium text-ink">
+                                    Precio cobrado{' '}
+                                    <span className="font-normal text-muted-foreground">
+                                        (sugerido: {formatCurrency(item.products?.base_price)})
+                                    </span>
                                 </Label>
                                 <Input
                                     id="priceSold"
@@ -151,30 +190,34 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                                     placeholder="Ej. 250.00"
                                     value={priceSold}
                                     onChange={(e) => setPriceSold(e.target.value)}
-                                    className="bg-white border-indigo-200"
+                                    className="bg-card font-mono"
                                     required
+                                    autoFocus
                                 />
                             </div>
                         )}
 
+                        {/* Notas */}
                         <div className="grid gap-2">
-                            <Label htmlFor="notes">
-                                Notas / Comentarios (opcional)
+                            <Label htmlFor="notes" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Notas / comentarios <span className="font-normal normal-case tracking-normal">(opcional)</span>
                             </Label>
-                            <Input
+                            <textarea
                                 id="notes"
+                                rows={2}
                                 placeholder="Ej. Entregado a Juan Pérez en Punto X"
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value.slice(0, MAX_NOTES_LENGTH))}
                                 maxLength={MAX_NOTES_LENGTH}
+                                className="flex w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
                             />
-                            <p className={`text-xs text-right ${notes.length >= MAX_NOTES_LENGTH ? 'text-red-500' : 'text-muted-foreground'}`}>
+                            <p className={`text-right text-xs ${notes.length >= MAX_NOTES_LENGTH ? 'text-status-returned' : 'text-muted-foreground'}`}>
                                 {notes.length}/{MAX_NOTES_LENGTH}
                             </p>
                         </div>
 
                         {error && (
-                            <div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-100">
+                            <div className="rounded-lg border border-status-returned/30 bg-status-returned/10 p-3 text-sm text-status-returned">
                                 {error}
                             </div>
                         )}

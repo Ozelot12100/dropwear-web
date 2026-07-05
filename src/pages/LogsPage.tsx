@@ -3,33 +3,35 @@ import { useQuery } from '@tanstack/react-query';
 import { logsService } from '../services/logs';
 import { useAuth } from '../hooks';
 import type { LogAction } from '../types';
-import { Badge } from '../components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Skeleton } from '../components/ui/skeleton';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetClose } from '../components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { Button } from '../components/ui/button';
-import { Filter, Users, Calendar } from 'lucide-react';
+import { SlidersHorizontal, Users, Calendar, Banknote, Bookmark, CornerUpLeft, PlusSquare, RefreshCw, type LucideIcon } from 'lucide-react';
 import { isToday, isYesterday, isThisWeek, isThisMonth, parseISO } from 'date-fns';
 
-// ── Mapas de color y etiqueta ─────────────────────────────────────────────────
-const actionColorMap: Record<string, string> = {
-    creacion: 'bg-blue-100 text-blue-800',
-    actualizacion_estado: 'bg-gray-100 text-gray-800',
-    venta: 'bg-green-100 text-green-800',
-    apartado: 'bg-yellow-100 text-yellow-800',
-    devolucion: 'bg-red-100 text-red-800',
+// ── Metadatos por tipo de operación (diseño Stitch) ───────────────────────────
+type OpMeta = {
+    title: string;
+    Icon: LucideIcon;
+    bar: string;
+    pill: string;
+    pillLabel: string;
+    amountClass: string;
+    sign: string;
 };
 
-const actionLabelMap: Record<string, string> = {
-    creacion: '🆕 Creación',
-    actualizacion_estado: '🔄 Actualización',
-    venta: '💰 Venta',
-    apartado: '📌 Apartado',
-    devolucion: '↩️ Devolución',
+const OPERATION_META: Record<string, OpMeta> = {
+    venta: { title: 'Venta Realizada', Icon: Banknote, bar: 'bg-status-available', pill: 'bg-status-available/10 text-status-available', pillLabel: 'Venta', amountClass: 'text-status-available', sign: '+' },
+    apartado: { title: 'Apartado', Icon: Bookmark, bar: 'bg-status-reserved', pill: 'bg-status-reserved/10 text-status-reserved', pillLabel: 'Apartado', amountClass: 'text-status-reserved', sign: '' },
+    devolucion: { title: 'Devolución', Icon: CornerUpLeft, bar: 'bg-status-returned', pill: 'bg-status-returned/10 text-status-returned', pillLabel: 'Devolución', amountClass: 'text-status-returned', sign: '−' },
+    creacion: { title: 'Alta de Producto', Icon: PlusSquare, bar: 'bg-ink', pill: 'bg-secondary text-muted-foreground', pillLabel: 'Alta', amountClass: 'text-ink', sign: '' },
+    actualizacion_estado: { title: 'Cambio de Estado', Icon: RefreshCw, bar: 'bg-status-sold', pill: 'bg-status-sold/10 text-status-sold', pillLabel: 'Cambio', amountClass: 'text-ink', sign: '' },
 };
+
+const fallbackOp: OpMeta = { title: 'Operación', Icon: RefreshCw, bar: 'bg-muted-foreground', pill: 'bg-secondary text-muted-foreground', pillLabel: '—', amountClass: 'text-ink', sign: '' };
 
 const statusLabel: Record<string, string> = {
     disponible: 'Disponible',
@@ -38,18 +40,21 @@ const statusLabel: Record<string, string> = {
     devuelto: 'Devuelto',
 };
 
-// ── Pills de filtro por acción ────────────────────────────────────────────────
-const ACTION_FILTERS: { label: string; value: LogAction | 'todas' }[] = [
-    { label: 'Todas', value: 'todas' },
-    { label: '💰 Ventas', value: 'venta' },
-    { label: '📌 Apartados', value: 'apartado' },
-    { label: '↩️ Devoluciones', value: 'devolucion' },
-    { label: '🆕 Altas', value: 'creacion' },
-    { label: '🔄 Cambios', value: 'actualizacion_estado' },
+// ── Pills de filtro por acción (con punto de color) ───────────────────────────
+const ACTION_FILTERS: { label: string; value: LogAction | 'todas'; dot: string | null }[] = [
+    { label: 'Todas', value: 'todas', dot: null },
+    { label: 'Ventas', value: 'venta', dot: 'bg-status-available' },
+    { label: 'Apartados', value: 'apartado', dot: 'bg-status-reserved' },
+    { label: 'Devoluciones', value: 'devolucion', dot: 'bg-status-returned' },
+    { label: 'Altas', value: 'creacion', dot: 'bg-ink' },
+    { label: 'Cambios', value: 'actualizacion_estado', dot: 'bg-status-sold' },
 ];
 
 // Roles que pueden ver la columna de precio de venta
 const FINANCIAL_ROLES = ['superadmin', 'socio', 'contador'];
+
+const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 
 function formatDate(iso: string | null) {
     if (!iso) return '—';
@@ -57,6 +62,19 @@ function formatDate(iso: string | null) {
         day: '2-digit', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
     });
+}
+
+// Devuelve { time, day } para las tarjetas móviles (ej. "14:20" · "Hoy")
+function formatRelative(iso: string | null): { time: string; day: string } {
+    if (!iso) return { time: '—', day: '' };
+    const d = new Date(iso);
+    const time = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    const date = parseISO(iso);
+    let day: string;
+    if (isToday(date)) day = 'Hoy';
+    else if (isYesterday(date)) day = 'Ayer';
+    else day = d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+    return { time, day };
 }
 
 // ── Skeleton de carga para la tabla ──────────────────────────────────────────
@@ -148,59 +166,59 @@ export default function LogsPage() {
     }, [logs]);
 
     if (isError) return (
-        <div className="flex items-center justify-center h-48 text-red-500">
+        <div className="flex h-48 items-center justify-center text-status-returned">
             Error al cargar el historial operativo.
         </div>
     );
 
     return (
-        <div className="space-y-4">
+        <div className="mx-auto max-w-6xl space-y-4">
             {/* Header y Botón Sheet */}
-            <div className="flex justify-between items-start">
+            <div className="flex items-start justify-between gap-4">
                 <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+                    <h1 className="font-heading text-2xl font-bold tracking-tight text-ink sm:text-[32px]">
                         Bitácora Operativa
                     </h1>
-                    <p className="text-xs sm:text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                         Historial inmutable de todas las operaciones registradas.
                     </p>
                 </div>
 
                 {/* Filtros avanzados Sheet */}
                 <Sheet>
-                    <SheetTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 shrink-0 relative">
-                        <Filter className="h-4 w-4 sm:mr-2" />
+                    <SheetTrigger className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-hairline bg-card px-3 text-sm font-medium text-ink transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:h-10">
+                        <SlidersHorizontal className="h-4 w-4" />
                         <span className="hidden sm:inline">Filtros</span>
                         {activeFiltersCount > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-indigo-600 text-white text-[9px] font-bold flex items-center justify-center border border-white">
+                            <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-ink text-[10px] font-bold text-white">
                                 {activeFiltersCount}
                             </span>
                         )}
                     </SheetTrigger>
-                    <SheetContent side="right" className="w-full sm:w-[400px] overflow-y-auto">
+                    <SheetContent side="right" className="w-full overflow-y-auto sm:w-[400px]">
                         <SheetHeader className="mb-6">
-                            <SheetTitle>Filtros de Historial</SheetTitle>
+                            <SheetTitle className="font-heading">Filtros de Historial</SheetTitle>
                             <SheetDescription>
                                 Filtra las operaciones por usuario y fecha.
                             </SheetDescription>
                         </SheetHeader>
 
-                        <div className="space-y-8 mt-2">
+                        <div className="mt-2 space-y-8">
                             {/* Filtro Usuarios */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-semibold flex items-center text-slate-700">
-                                    <Users className="w-4 h-4 mr-2 text-indigo-500" />
+                                <Label className="flex items-center text-sm font-semibold text-ink">
+                                    <Users className="mr-2 h-4 w-4 text-brand" />
                                     Operador (Staff)
                                 </Label>
                                 <Select
                                     value={advancedFilters.user}
                                     onValueChange={(val) => setAdvancedFilters(prev => ({ ...prev, user: val || 'todos' }))}
                                 >
-                                    <SelectTrigger className="w-full h-12 bg-slate-50 border-transparent hover:bg-slate-100 focus:ring-indigo-500">
+                                    <SelectTrigger className="h-12 w-full border-hairline bg-secondary transition-colors hover:bg-accent">
                                         <SelectValue placeholder="Todos los operadores" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todos" className="font-medium text-slate-500">Todos los operadores</SelectItem>
+                                        <SelectItem value="todos" className="font-medium text-muted-foreground">Todos los operadores</SelectItem>
                                         {dynamicUsers.map(u => (
                                             <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                                         ))}
@@ -210,8 +228,8 @@ export default function LogsPage() {
 
                             {/* Filtro Tiempo (Pills) */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-semibold flex items-center text-slate-700">
-                                    <Calendar className="w-4 h-4 mr-2 text-indigo-500" />
+                                <Label className="flex items-center text-sm font-semibold text-ink">
+                                    <Calendar className="mr-2 h-4 w-4 text-brand" />
                                     Rango de Fecha
                                 </Label>
                                 <div className="grid grid-cols-2 gap-2">
@@ -227,9 +245,9 @@ export default function LogsPage() {
                                             <button
                                                 key={opt.value}
                                                 onClick={() => setAdvancedFilters(prev => ({ ...prev, dateRange: opt.value }))}
-                                                className={`px-3 py-2.5 rounded-lg text-sm transition-all sm:col-span-1 ${isSelected
-                                                        ? 'bg-indigo-600 text-white font-bold shadow-md ring-2 ring-indigo-600 ring-offset-1'
-                                                        : 'bg-slate-100 text-slate-600 font-medium hover:bg-slate-200'
+                                                className={`rounded-lg px-3 py-2.5 text-sm transition-all ${isSelected
+                                                    ? 'bg-ink font-bold text-white'
+                                                    : 'bg-secondary font-medium text-muted-foreground hover:bg-accent'
                                                     }`}
                                             >
                                                 {opt.label}
@@ -249,7 +267,7 @@ export default function LogsPage() {
                                     Limpiar
                                 </Button>
                             )}
-                            <SheetClose className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full sm:w-auto">
+                            <SheetClose className="inline-flex h-10 w-full items-center justify-center whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:w-auto">
                                 Aplicar Filtros
                             </SheetClose>
                         </SheetFooter>
@@ -258,8 +276,8 @@ export default function LogsPage() {
             </div>
 
             {/* ── Pills de filtro por acción ────────────────────────── */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
-                {ACTION_FILTERS.map(({ label, value }) => {
+            <div className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+                {ACTION_FILTERS.map(({ label, value, dot }) => {
                     const count = value === 'todas'
                         ? (logs?.length ?? 0)
                         : (counts[value] ?? 0);
@@ -268,13 +286,14 @@ export default function LogsPage() {
                         <button
                             key={value}
                             onClick={() => setActionFilter(value)}
-                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${isActive
-                                    ? 'bg-gray-900 text-white border-gray-900'
-                                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                            className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${isActive
+                                ? 'border-ink bg-ink text-white'
+                                : 'border-hairline bg-card text-muted-foreground hover:border-muted-foreground/40'
                                 }`}
                         >
+                            {dot && <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />}
                             {label}
-                            <span className={`text-[10px] ${isActive ? 'opacity-70' : 'text-gray-400'}`}>
+                            <span className={`font-mono text-[10px] ${isActive ? 'opacity-70' : 'text-muted-foreground/70'}`}>
                                 {isLoading ? '—' : count}
                             </span>
                         </button>
@@ -282,123 +301,198 @@ export default function LogsPage() {
                 })}
             </div>
 
-            {/* ── Tabla ────────────────────────────────────────────────── */}
-            <Card>
-                <CardHeader className="pb-2">
-                    <CardTitle className="text-base">
-                        Historial de Operaciones{' '}
-                        {!isLoading && (
-                            <span className="text-sm font-normal text-gray-400">
-                                ({filtered.length}{actionFilter !== 'todas' ? ` de ${logs?.length ?? 0}` : ''} registros)
-                            </span>
-                        )}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-16">ID</TableHead>
-                                    <TableHead>Prenda</TableHead>
-                                    <TableHead>Operador</TableHead>
-                                    <TableHead>Acción</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    {canSeeFinancial && <TableHead className="text-right">Precio Venta</TableHead>}
-                                    <TableHead>Notas</TableHead>
-                                    <TableHead>Fecha</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {/* Estado de carga: skeleton rows */}
-                                {isLoading && <LogsTableSkeleton cols={totalCols} />}
-
-                                {/* Datos */}
-                                {!isLoading && filtered.map((log) => {
-                                    const item = log.inventory_items;
-                                    const product = item?.products;
-                                    return (
-                                        <TableRow key={log.id}>
-                                            <TableCell className="font-mono text-gray-400">#{log.id}</TableCell>
-
-                                            {/* Prenda */}
-                                            <TableCell>
-                                                <div className="font-medium">{product?.name ?? '—'}</div>
-                                                <div className="text-xs text-gray-500">
-                                                    {product?.brands?.name} · T.{item?.size} · <span className="capitalize">{item?.color}</span>
-                                                </div>
-                                            </TableCell>
-
-                                            {/* Operador */}
-                                            <TableCell className="text-sm">
-                                                {log.user_profiles?.full_name ?? (
-                                                    <span className="text-gray-400 italic">Eliminado</span>
-                                                )}
-                                            </TableCell>
-
-                                            {/* Acción */}
-                                            <TableCell>
-                                                <Badge className={actionColorMap[log.action] ?? 'bg-gray-100'}>
-                                                    {actionLabelMap[log.action] ?? log.action}
-                                                </Badge>
-                                            </TableCell>
-
-                                            {/* Transición de estado */}
-                                            <TableCell className="whitespace-nowrap">
-                                                {log.previous_status ? (
-                                                    <span className="text-xs text-gray-500">
-                                                        {statusLabel[log.previous_status]}{' '}
-                                                        <span className="text-gray-400">→</span>{' '}
-                                                        <span className="font-medium text-gray-900">
-                                                            {log.new_status ? statusLabel[log.new_status] : '—'}
-                                                        </span>
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-xs font-medium text-gray-900">
-                                                        {log.new_status ? statusLabel[log.new_status] : '—'}
-                                                    </span>
-                                                )}
-                                            </TableCell>
-
-                                            {/* Precio de venta (solo roles financieros) */}
-                                            {canSeeFinancial && (
-                                                <TableCell className="text-right font-medium">
-                                                    {log.inventory_items?.price_sold != null
-                                                        ? <span className="text-green-700">${log.inventory_items.price_sold.toFixed(2)}</span>
-                                                        : <span className="text-gray-300">—</span>
-                                                    }
-                                                </TableCell>
-                                            )}
-
-                                            {/* Notas */}
-                                            <TableCell className="text-sm text-gray-500 max-w-[160px] truncate">
-                                                {log.notes ?? <span className="italic text-gray-300">—</span>}
-                                            </TableCell>
-
-                                            {/* Fecha */}
-                                            <TableCell className="text-xs text-gray-500 whitespace-nowrap">
-                                                {formatDate(log.created_at)}
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-
-                                {/* Estado vacío */}
-                                {!isLoading && filtered.length === 0 && (
-                                    <TableRow>
-                                        <TableCell colSpan={totalCols} className="h-24 text-center text-gray-400">
-                                            {actionFilter !== 'todas'
-                                                ? `No hay registros de "${actionLabelMap[actionFilter]}" aún.`
-                                                : 'No hay operaciones registradas aún.'
-                                            }
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+            {/* ── Vista MÓVIL: tarjetas ──────────────────────────────── */}
+            <div className="space-y-3 sm:hidden">
+                {isLoading && Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="rounded-xl border border-hairline bg-card p-4">
+                        <div className="flex gap-3">
+                            <Skeleton className="h-10 w-10 rounded-lg" />
+                            <div className="flex-1 space-y-2">
+                                <Skeleton className="h-4 w-40" />
+                                <Skeleton className="h-3 w-28" />
+                            </div>
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
+                ))}
+
+                {!isLoading && filtered.map((log) => {
+                    const meta = OPERATION_META[log.action] ?? fallbackOp;
+                    const item = log.inventory_items;
+                    const product = item?.products;
+                    const price = item?.price_sold;
+                    const showAmount = canSeeFinancial && price != null && (log.action === 'venta' || log.action === 'devolucion');
+                    const operator = log.user_profiles?.full_name ?? 'Eliminado';
+                    const { time, day } = formatRelative(log.created_at);
+                    const Icon = meta.Icon;
+
+                    return (
+                        <div key={log.id} className="relative overflow-hidden rounded-xl border border-hairline bg-card shadow-soft">
+                            <span className={`absolute inset-y-0 left-0 w-1 ${meta.bar}`} />
+                            <div className="p-4 pl-5">
+                                {/* Encabezado */}
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-ink">
+                                            <Icon className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <p className="font-heading font-semibold text-ink">{meta.title}</p>
+                                            <p className="font-mono text-xs text-muted-foreground">#{log.id}</p>
+                                        </div>
+                                    </div>
+                                    {showAmount && (
+                                        <span className={`font-mono text-sm font-semibold ${meta.amountClass}`}>
+                                            {meta.sign}{formatCurrency(price!)}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Prenda */}
+                                <div className="mt-3">
+                                    <p className="font-medium text-ink">{product?.name ?? '—'}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {[product?.brands?.name, item?.size && `T.${item.size}`, item?.color].filter(Boolean).join(' · ')}
+                                    </p>
+                                </div>
+
+                                {/* Transición de estado */}
+                                {log.previous_status && log.new_status && (
+                                    <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs">
+                                        <span className="text-muted-foreground">{statusLabel[log.previous_status]}</span>
+                                        <span className="text-muted-foreground">→</span>
+                                        <span className="font-semibold text-ink">{statusLabel[log.new_status]}</span>
+                                    </div>
+                                )}
+
+                                {log.notes && (
+                                    <p className="mt-2 text-xs italic text-muted-foreground">{log.notes}</p>
+                                )}
+
+                                {/* Pie: operador + fecha */}
+                                <div className="mt-3 flex items-center justify-between border-t border-hairline pt-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-[10px] font-bold text-white">
+                                            {operator.charAt(0).toUpperCase()}
+                                        </div>
+                                        <span className="text-xs font-medium text-ink">{operator}</span>
+                                    </div>
+                                    <span className="font-mono text-xs text-muted-foreground">{time} · {day}</span>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {!isLoading && filtered.length === 0 && (
+                    <div className="py-12 text-center text-sm text-muted-foreground">
+                        {actionFilter !== 'todas'
+                            ? `No hay registros de "${OPERATION_META[actionFilter]?.pillLabel ?? actionFilter}" aún.`
+                            : 'No hay operaciones registradas aún.'}
+                    </div>
+                )}
+            </div>
+
+            {/* ── Vista DESKTOP: tabla ───────────────────────────────── */}
+            <div className="hidden overflow-x-auto rounded-xl border border-hairline bg-card shadow-soft sm:block">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="border-hairline hover:bg-transparent">
+                            <TableHead className="w-16 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">ID</TableHead>
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Fecha y hora</TableHead>
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Operación</TableHead>
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Artículo</TableHead>
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Operador</TableHead>
+                            {canSeeFinancial && <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Monto</TableHead>}
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Estatus</TableHead>
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Notas</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading && <LogsTableSkeleton cols={totalCols} />}
+
+                        {!isLoading && filtered.map((log) => {
+                            const meta = OPERATION_META[log.action] ?? fallbackOp;
+                            const item = log.inventory_items;
+                            const product = item?.products;
+                            const price = item?.price_sold;
+                            const showAmount = price != null && (log.action === 'venta' || log.action === 'devolucion');
+                            const Icon = meta.Icon;
+                            const operator = log.user_profiles?.full_name;
+
+                            return (
+                                <TableRow key={log.id} className="border-hairline hover:bg-secondary/60">
+                                    <TableCell className="font-mono text-muted-foreground">#{log.id}</TableCell>
+                                    <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{formatDate(log.created_at)}</TableCell>
+                                    <TableCell>
+                                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${meta.pill}`}>
+                                            <Icon className="h-3.5 w-3.5" />
+                                            {meta.pillLabel}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="font-medium text-ink">{product?.name ?? '—'}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {[product?.brands?.name, item?.size && `T.${item.size}`, item?.color].filter(Boolean).join(' · ')}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-sm">
+                                        {operator ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-[10px] font-bold text-white">
+                                                    {operator.charAt(0).toUpperCase()}
+                                                </div>
+                                                <span className="text-ink">{operator}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="italic text-muted-foreground">Eliminado</span>
+                                        )}
+                                    </TableCell>
+                                    {canSeeFinancial && (
+                                        <TableCell className="text-right font-mono">
+                                            {showAmount
+                                                ? <span className={meta.amountClass}>{meta.sign}{formatCurrency(price!)}</span>
+                                                : <span className="text-muted-foreground/50">—</span>}
+                                        </TableCell>
+                                    )}
+                                    <TableCell className="whitespace-nowrap">
+                                        {log.previous_status ? (
+                                            <span className="text-xs text-muted-foreground">
+                                                {statusLabel[log.previous_status]}{' '}
+                                                <span className="text-muted-foreground/60">→</span>{' '}
+                                                <span className="font-semibold text-ink">
+                                                    {log.new_status ? statusLabel[log.new_status] : '—'}
+                                                </span>
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs font-semibold text-ink">
+                                                {log.new_status ? statusLabel[log.new_status] : '—'}
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="max-w-[160px] truncate text-sm text-muted-foreground">
+                                        {log.notes ?? <span className="italic text-muted-foreground/50">—</span>}
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+
+                        {!isLoading && filtered.length === 0 && (
+                            <TableRow className="hover:bg-transparent">
+                                <TableCell colSpan={totalCols} className="h-24 text-center text-muted-foreground">
+                                    {actionFilter !== 'todas'
+                                        ? `No hay registros de "${OPERATION_META[actionFilter]?.pillLabel ?? actionFilter}" aún.`
+                                        : 'No hay operaciones registradas aún.'}
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+                {!isLoading && filtered.length > 0 && (
+                    <div className="border-t border-hairline px-4 py-3 text-xs text-muted-foreground">
+                        Mostrando {filtered.length}{actionFilter !== 'todas' ? ` de ${logs?.length ?? 0}` : ''} operaciones
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

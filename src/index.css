@@ -1,49 +1,48 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/jetbrains-mono";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif
+    --font-heading: 'Space Grotesk Variable', sans-serif;
+    --font-sans: 'Inter Variable', sans-serif
   }
 
+  /* Paleta DropWear (diseño Stitch): base hueso / tinta, acento rojo de marca. */
   :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0)
+    --background: #F7F7F5;
+    --foreground: #0E0E10;
+    --card: #FFFFFF;
+    --card-foreground: #0E0E10;
+    --popover: #FFFFFF;
+    --popover-foreground: #0E0E10;
+    --primary: #0E0E10;
+    --primary-foreground: #FFFFFF;
+    --secondary: #F4F4F2;
+    --secondary-foreground: #0E0E10;
+    --muted: #F4F4F2;
+    --muted-foreground: #57565B;
+    --accent: #F1F1EF;
+    --accent-foreground: #0E0E10;
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+    --border: #E7E7E4;
+    --input: #E7E7E4;
+    --ring: #E32130;
+    --radius: 0.75rem;
+    --sidebar: #FFFFFF;
+    --sidebar-foreground: #0E0E10;
+    --sidebar-primary: #0E0E10;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #F1F1EF;
+    --sidebar-accent-foreground: #0E0E10;
+    --sidebar-border: #E7E7E4;
+    --sidebar-ring: #E32130
   }
 
   .dark {

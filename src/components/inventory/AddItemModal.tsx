@@ -14,9 +14,14 @@ import {
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Tag, CheckCircle2 } from 'lucide-react';
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'ÚNICA'];
 const COLOR_REGEX = /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/;
+
+const selectClass =
+    'flex h-11 w-full items-center justify-between rounded-lg border border-input bg-card px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
+const capsLabel = 'text-[11px] font-semibold uppercase tracking-wider text-muted-foreground';
 
 interface AddItemModalProps {
     isOpen: boolean;
@@ -95,22 +100,22 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-[460px]">
+            <DialogContent className="sm:max-w-[480px]">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
-                        <DialogTitle>Agregar Nueva Prenda al Inventario</DialogTitle>
+                        <DialogTitle className="text-lg">Agregar Nueva Prenda</DialogTitle>
                         <DialogDescription>
                             El artículo se registrará como <strong>disponible</strong> de forma inmediata.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
+                    <div className="grid gap-5 py-4">
                         {/* Selector de Producto */}
                         <div className="grid gap-2">
-                            <Label htmlFor="product">Producto del Catálogo *</Label>
+                            <Label htmlFor="product" className={capsLabel}>Producto del catálogo *</Label>
                             <select
                                 id="product"
-                                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                className={selectClass}
                                 value={productId}
                                 onChange={(e) => setProductId(e.target.value)}
                                 required
@@ -126,35 +131,40 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
                                 ))}
                             </select>
                             {selectedProduct && (
-                                <p className="text-xs text-muted-foreground">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Tag className="h-3.5 w-3.5 text-brand" />
                                     Categoría: {selectedProduct.categories?.name}
                                     {selectedProduct.description && ` · ${selectedProduct.description}`}
                                 </p>
                             )}
                         </div>
 
-                        {/* Selector de Talla */}
+                        {/* Selector de Talla (pills) */}
                         <div className="grid gap-2">
-                            <Label htmlFor="size">Talla *</Label>
-                            <select
-                                id="size"
-                                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                value={size}
-                                onChange={(e) => setSize(e.target.value)}
-                                required
-                            >
-                                <option value="" disabled>Selecciona una talla...</option>
+                            <Label className={capsLabel}>Talla *</Label>
+                            <div className="flex flex-wrap gap-2">
                                 {SIZES.map((s) => (
-                                    <option key={s} value={s}>{s}</option>
+                                    <button
+                                        key={s}
+                                        type="button"
+                                        onClick={() => setSize(s)}
+                                        className={`rounded-lg px-4 py-2 font-mono text-sm font-bold uppercase transition-all active:scale-95 ${size === s
+                                            ? 'bg-ink text-white'
+                                            : 'bg-secondary text-ink hover:bg-accent'
+                                            }`}
+                                    >
+                                        {s}
+                                    </button>
                                 ))}
-                            </select>
+                            </div>
                         </div>
 
                         {/* Input de Color */}
                         <div className="grid gap-2">
-                            <Label htmlFor="color">
-                                Color * <span className="text-xs text-muted-foreground font-normal">(solo letras, mín. 3)</span>
-                            </Label>
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="color" className={capsLabel}>Color *</Label>
+                                <span className="font-mono text-xs text-muted-foreground">{color.length}/30</span>
+                            </div>
                             <Input
                                 id="color"
                                 type="text"
@@ -163,13 +173,26 @@ export function AddItemModal({ isOpen, onClose }: AddItemModalProps) {
                                 onChange={(e) => setColor(e.target.value)}
                                 required
                                 maxLength={30}
+                                className="h-11"
                             />
-                            <p className="text-xs text-muted-foreground text-right">{color.length}/30</p>
+                            <p className="text-xs italic text-muted-foreground">Solo letras, mín. 3</p>
+                        </div>
+
+                        {/* Callout: se registrará como disponible */}
+                        <div className="relative overflow-hidden rounded-xl border border-hairline bg-secondary p-4 pl-5">
+                            <span className="absolute inset-y-0 left-0 w-1 bg-status-available" />
+                            <div className="flex items-start gap-3">
+                                <CheckCircle2 className="h-5 w-5 shrink-0 text-status-available" />
+                                <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-wider text-status-available">Disponible</p>
+                                    <p className="text-sm text-muted-foreground">Visible en tienda y terminal de ventas.</p>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Bloque de error */}
                         {error && (
-                            <div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-100">
+                            <div className="rounded-lg border border-status-returned/30 bg-status-returned/10 p-3 text-sm text-status-returned">
                                 {error}
                             </div>
                         )}

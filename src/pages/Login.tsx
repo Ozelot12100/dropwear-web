@@ -4,13 +4,14 @@ import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../components/ui/card';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { Card, CardContent } from '../components/ui/card';
+import { AlertCircle, Loader2, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import Logo from '../assets/logo.png';
 
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -64,107 +65,104 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50/50 relative overflow-hidden">
-            {/* Background Decorations */}
-            <div className="absolute top-0 w-full h-full bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.1),rgba(255,255,255,0))]"></div>
-
-            <div className="w-full max-w-md px-4 sm:px-0 relative z-10">
-                <div className="mb-8 flex flex-col items-center">
-                    <div className="relative">
-                        <img
-                            src={Logo}
-                            alt="DropWear Logo"
-                            className="h-28 w-auto object-contain drop-shadow-sm"
-                        // Sin invert, ya que el fondo de la pantalla y logo son claros/transparentes.
-                        // Si el logo original es negro, se verá perfecto sobre bg-gray-50.
-                        />
-                    </div>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-10">
+            <div className="w-full max-w-md">
+                {/* Logo + marca */}
+                <div className="mb-8 flex flex-col items-center gap-3">
+                    <img src={Logo} alt="DropWear" className="h-16 w-auto object-contain" />
+                    <h1 className="font-heading text-3xl font-bold tracking-tight text-ink">DropWear</h1>
                 </div>
 
-                <Card className="border-gray-200/60 shadow-xl shadow-black/[0.03] backdrop-blur-xl bg-white/95">
-                    <CardHeader className="space-y-2 pb-6 text-center">
-                        <CardTitle className="text-2xl font-bold tracking-tight text-gray-900">
-                            Portal Administrativo
-                        </CardTitle>
-                        <CardDescription className="text-sm text-gray-500">
-                            Ingresa tus credenciales para acceder al sistema
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleLogin} className="space-y-4">
+                <Card className="rounded-2xl border-hairline shadow-soft">
+                    <CardContent className="p-6 sm:p-8">
+                        <form onSubmit={handleLogin} className="space-y-5">
                             {error && (
-                                <div className="bg-red-50 border border-red-200 text-red-600 rounded-md p-3 flex items-start gap-2 text-sm animate-in fade-in slide-in-from-top-1">
-                                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5 text-red-500" />
+                                <div className="bg-status-returned/10 border border-status-returned/30 text-status-returned rounded-xl p-3 flex items-start gap-2 text-sm">
+                                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
                                     <p className="leading-snug">{error}</p>
                                 </div>
                             )}
 
                             <div className="space-y-2">
-                                <Label htmlFor="email" className="text-gray-700 font-medium">Correo Electrónico</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="admin@dropwear.mx"
-                                    className="bg-white border-gray-300 focus-visible:ring-gray-900 focus-visible:border-gray-900 placeholder:text-gray-400 transition-all"
-                                    autoComplete="email"
-                                    disabled={loading}
-                                />
+                                <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Correo electrónico
+                                </Label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        required
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="usuario@dropwear.com"
+                                        className="h-12 pl-11"
+                                        autoComplete="email"
+                                        disabled={loading}
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label htmlFor="password" className="text-gray-700 font-medium">Contraseña</Label>
+                                <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Contraseña
+                                </Label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        className="h-12 pl-11 pr-11"
+                                        autoComplete="current-password"
+                                        disabled={loading}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword((v) => !v)}
+                                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-ink transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
                                 </div>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    className="bg-white border-gray-300 focus-visible:ring-gray-900 focus-visible:border-gray-900 transition-all"
-                                    autoComplete="current-password"
-                                    disabled={loading}
-                                />
                             </div>
 
-                            <Button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-black hover:bg-gray-900 text-white font-semibold transition-all shadow-md mt-6 relative overflow-hidden group"
-                            >
-                                <span className="absolute bottom-0 left-0 w-full h-[3px] bg-red-600 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></span>
+                            <Button type="submit" disabled={loading} className="w-full h-12 text-base gap-2">
                                 {loading ? (
                                     <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Verificando...
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Entrando...
                                     </>
                                 ) : (
-                                    'Iniciar Sesión'
+                                    <>
+                                        Iniciar sesión
+                                        <ArrowRight className="h-5 w-5" />
+                                    </>
                                 )}
                             </Button>
+
+                            <p className="text-center text-sm text-muted-foreground leading-snug px-2">
+                                El registro público se encuentra actualmente desactivado. Contacta a un administrador para obtener acceso.
+                            </p>
                         </form>
                     </CardContent>
-                    <CardFooter className="flex flex-col items-center gap-2 border-t border-gray-100 pt-6 pb-6">
-                        <p className="text-xs text-gray-400 font-medium">
-                            Sistema exclusivo para personal autorizado.
-                        </p>
-                        <p className="text-xs text-gray-400">
-                            Diseñado y desarrollado por{" "}
-                            <a
-                                href="https://www.davidramirez.com.mx/?utm_source=dropwear&utm_medium=footer&utm_campaign=credito"
-                                target="_blank"
-                                rel="noopener noreferrer author"
-                                className="font-semibold text-gray-500 transition-colors hover:text-gray-900"
-                            >
-                                David A. Ramírez
-                            </a>
-                        </p>
-                    </CardFooter>
                 </Card>
+
+                <p className="mt-8 text-center text-xs text-muted-foreground">
+                    Diseñado y desarrollado por{" "}
+                    <a
+                        href="https://www.davidramirez.com.mx/?utm_source=dropwear&utm_medium=footer&utm_campaign=credito"
+                        target="_blank"
+                        rel="noopener noreferrer author"
+                        className="font-semibold text-ink/70 transition-colors hover:text-ink"
+                    >
+                        David A. Ramírez
+                    </a>
+                </p>
             </div>
         </div>
     );
