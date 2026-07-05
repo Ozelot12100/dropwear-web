@@ -3,9 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { inventoryService } from '../services/inventory';
 import type { InventoryItemWithRelations, ItemStatus } from '../types';
-import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Skeleton } from '../components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
@@ -13,28 +11,27 @@ import { TransactionModal } from '../components/inventory/TransactionModal';
 import { AddItemModal } from '../components/inventory/AddItemModal';
 import { EditItemModal } from '../components/inventory/EditItemModal';
 import { RoleGuard } from '../components/layout/RoleGuard';
-import { Plus, ChevronRight, Search, X, Edit2, Filter, Tag, Layers, Ruler } from 'lucide-react';
+import { Plus, ChevronRight, Search, X, Edit2, SlidersHorizontal, Tag, Layers, Ruler, Shirt } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetClose } from '../components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 
-// ── Colores por estado ────────────────────────────────────────────────────────
-const statusColorMap: Record<string, string> = {
-    disponible: 'bg-green-100 text-green-800 hover:bg-green-100',
-    apartado: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
-    vendido: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100',
-    devuelto: 'bg-red-100 text-red-800 hover:bg-red-100',
+// ── Sistema de estatus (diseño Stitch): punto + etiqueta / pill con tinte ──────
+const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string; chip: string }> = {
+    disponible: { label: 'Disponible', dot: 'bg-status-available', text: 'text-status-available', chip: 'bg-status-available/10' },
+    apartado: { label: 'Apartado', dot: 'bg-status-reserved', text: 'text-status-reserved', chip: 'bg-status-reserved/10' },
+    vendido: { label: 'Vendido', dot: 'bg-status-sold', text: 'text-status-sold', chip: 'bg-status-sold/10' },
+    devuelto: { label: 'Devuelto', dot: 'bg-status-returned', text: 'text-status-returned', chip: 'bg-status-returned/10' },
 };
 
-// Indicador de color del borde izquierdo de la tarjeta según estado
-const statusBorderMap: Record<string, string> = {
-    disponible: 'border-l-green-400',
-    apartado: 'border-l-yellow-400',
-    vendido: 'border-l-indigo-400',
-    devuelto: 'border-l-red-400',
-};
+const fallbackStatus = { label: 'Desconocido', dot: 'bg-muted-foreground', text: 'text-muted-foreground', chip: 'bg-secondary' };
 
-// ── Filtros disponibles ───────────────────────────────────────────────────────
+const formatCurrency = (amount: number | null | undefined) =>
+    amount == null
+        ? '—'
+        : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+
+// ── Filtros de estado ─────────────────────────────────────────────────────────
 const STATUS_FILTERS: { label: string; value: ItemStatus | 'todos' }[] = [
     { label: 'Todos', value: 'todos' },
     { label: 'Disponible', value: 'disponible' },
@@ -42,6 +39,37 @@ const STATUS_FILTERS: { label: string; value: ItemStatus | 'todos' }[] = [
     { label: 'Vendido', value: 'vendido' },
     { label: 'Devuelto', value: 'devuelto' },
 ];
+
+// ── Etiqueta de estatus reutilizable (punto + texto) ──────────────────────────
+function StatusLabel({ status }: { status: string }) {
+    const cfg = STATUS_CONFIG[status] ?? fallbackStatus;
+    return (
+        <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider ${cfg.text}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+            {cfg.label}
+        </span>
+    );
+}
+
+// ── Chip de estatus tipo pill (tabla escritorio) ──────────────────────────────
+function StatusPill({ status }: { status: string }) {
+    const cfg = STATUS_CONFIG[status] ?? fallbackStatus;
+    return (
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${cfg.chip} ${cfg.text}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
+            {cfg.label}
+        </span>
+    );
+}
+
+// ── Chip de talla en mono ─────────────────────────────────────────────────────
+function SizeChip({ size }: { size: string }) {
+    return (
+        <span className="inline-flex items-center rounded-md border border-hairline bg-secondary px-2 py-0.5 font-mono text-xs uppercase text-ink">
+            {size}
+        </span>
+    );
+}
 
 // ── Tarjeta de ítem para móvil ───────────────────────────────────────────────
 function ItemCard({
@@ -53,46 +81,44 @@ function ItemCard({
     onPress: () => void;
     onEdit: () => void;
 }) {
+    const price = item.status === 'vendido' ? item.price_sold : item.products?.base_price;
     return (
-        <div className={`w-full bg-white border border-l-4 ${statusBorderMap[item.status] ?? 'border-l-gray-200'} rounded-lg p-4 flex items-center justify-between shadow-sm transition-transform relative`}>
-            {/* Contenedor del contenido clicable para la transacción */}
-            <button
-                onClick={onPress}
-                className="flex-1 min-w-0 text-left active:scale-[0.98]"
-            >
-                {/* Línea 1: Producto + marca */}
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-gray-900 truncate">{item.products?.name}</span>
-                    <span className="text-xs text-gray-400 shrink-0">{item.products?.brands?.name}</span>
-                </div>
+        <div className="flex items-center gap-3 rounded-xl border border-hairline bg-card p-3 shadow-soft">
+            {/* Miniatura (placeholder hasta que se agreguen fotos) */}
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+                <Shirt className="h-6 w-6" />
+            </div>
 
-                {/* Línea 2: Talla + color + estado */}
-                <div className="flex items-center gap-2 flex-wrap pr-2">
-                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-mono uppercase">
-                        {item.size}
-                    </span>
-                    <span className="text-xs text-gray-500 capitalize">{item.color}</span>
-                    <Badge className={`text-[10px] h-5 ${statusColorMap[item.status] ?? 'bg-gray-100'}`}>
-                        {item.status.toUpperCase()}
-                    </Badge>
+            {/* Contenido clicable → transacción */}
+            <button onClick={onPress} className="flex min-w-0 flex-1 flex-col gap-1.5 text-left active:scale-[0.99]">
+                <div className="min-w-0">
+                    <p className="truncate font-semibold text-ink">{item.products?.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{item.products?.brands?.name}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <SizeChip size={item.size} />
+                    <span className="text-xs capitalize text-muted-foreground">{item.color}</span>
+                    <StatusLabel status={item.status} />
                 </div>
             </button>
 
-            {/* Acciones laterales: Editar + Precio y Flecha */}
-            <div className="flex items-center gap-3 ml-2 shrink-0">
-                <button
-                    onClick={onEdit}
-                    className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-full transition-colors active:scale-95"
-                    aria-label="Editar"
-                >
-                    <Edit2 className="h-4 w-4" />
-                </button>
-                <button onClick={onPress} className="flex items-center gap-2 active:scale-95">
-                    <span className={`text-sm font-bold ${item.status === 'vendido' ? 'text-green-700' : 'text-gray-700'}`}>
-                        ${item.status === 'vendido' ? item.price_sold : item.products?.base_price}
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-gray-400" />
-                </button>
+            {/* Precio + acciones */}
+            <div className="flex shrink-0 flex-col items-end gap-2">
+                <span className={`font-mono text-sm font-semibold ${item.status === 'vendido' ? 'text-status-available' : 'text-ink'}`}>
+                    {formatCurrency(price)}
+                </span>
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={onEdit}
+                        className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
+                        aria-label="Editar"
+                    >
+                        <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={onPress} className="text-muted-foreground active:scale-95" aria-label="Ver detalle">
+                        <ChevronRight className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -101,18 +127,19 @@ function ItemCard({
 // ── Skeletons de carga ────────────────────────────────────────────────────────
 function MobileSkeletons() {
     return (
-        <div className="sm:hidden space-y-2">
+        <div className="space-y-3 sm:hidden">
             {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white border border-l-4 border-l-gray-200 rounded-lg p-4 space-y-2">
-                    <div className="flex justify-between">
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-hairline bg-card p-3">
+                    <Skeleton className="h-16 w-16 rounded-lg" />
+                    <div className="flex-1 space-y-2">
                         <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-12" />
+                        <Skeleton className="h-3 w-20" />
+                        <div className="flex gap-2">
+                            <Skeleton className="h-4 w-10 rounded" />
+                            <Skeleton className="h-4 w-20 rounded-full" />
+                        </div>
                     </div>
-                    <div className="flex gap-2">
-                        <Skeleton className="h-4 w-10 rounded-full" />
-                        <Skeleton className="h-4 w-16" />
-                        <Skeleton className="h-4 w-16 rounded-full" />
-                    </div>
+                    <Skeleton className="h-4 w-16" />
                 </div>
             ))}
         </div>
@@ -124,7 +151,7 @@ function TableSkeletons() {
         <>
             {Array.from({ length: 8 }).map((_, i) => (
                 <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                         <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                     ))}
                 </TableRow>
@@ -254,29 +281,29 @@ export default function InventoryPage() {
     }, {}) ?? {};
 
     if (isError) return (
-        <div className="flex items-center justify-center h-48 text-red-500">
+        <div className="flex h-48 items-center justify-center text-status-returned">
             Error al cargar el inventario.
         </div>
     );
 
     return (
-        <div className="space-y-4">
+        <div className="mx-auto max-w-6xl space-y-5">
             {/* ── Header ─────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+                    <h1 className="font-heading text-2xl font-bold tracking-tight text-ink sm:text-[32px]">
                         Inventario
                     </h1>
-                    <p className="text-xs sm:text-sm text-gray-500">
+                    <div className="mt-1 text-sm text-muted-foreground">
                         {isLoading ? (
-                            <Skeleton className="h-3 w-28 mt-1" />
+                            <Skeleton className="h-3 w-28" />
                         ) : (
                             <>{items?.length ?? 0} prendas · tiempo real</>
                         )}
-                    </p>
+                    </div>
                 </div>
                 <RoleGuard allowed={['socio', 'superadmin']}>
-                    <Button onClick={() => setIsAddModalOpen(true)} size="sm" className="gap-1.5">
+                    <Button onClick={() => setIsAddModalOpen(true)} className="gap-1.5">
                         <Plus className="h-4 w-4" />
                         <span className="hidden sm:inline">Agregar Prenda</span>
                         <span className="sm:hidden">Agregar</span>
@@ -287,19 +314,19 @@ export default function InventoryPage() {
             {/* ── Búsqueda y Filtros ─────────────────────────────────────────── */}
             <div className="flex gap-2">
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         type="search"
                         placeholder="Buscar por producto, marca, talla o color..."
                         value={searchRaw}
                         onChange={e => setSearchRaw(e.target.value)}
-                        className="pl-9 pr-9 h-11 text-base sm:text-sm sm:h-9"
+                        className="h-11 pl-10 pr-10 text-base sm:h-10 sm:text-sm"
                         autoComplete="off"
                     />
                     {searchRaw && (
                         <button
                             onClick={() => setSearchRaw('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-ink"
                             aria-label="Limpiar búsqueda"
                         >
                             <X className="h-4 w-4" />
@@ -308,38 +335,38 @@ export default function InventoryPage() {
                 </div>
 
                 <Sheet>
-                    <SheetTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-11 sm:h-9 px-3 shrink-0 relative">
-                        <Filter className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Filtros</span>
+                    <SheetTrigger className="relative inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-hairline bg-card px-3 text-sm font-medium text-ink transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:h-10">
+                        <SlidersHorizontal className="h-4 w-4" />
+                        <span className="hidden sm:inline">Filtros avanzados</span>
                         {activeFiltersCount > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
+                            <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-ink text-[10px] font-bold text-white">
                                 {activeFiltersCount}
                             </span>
                         )}
                     </SheetTrigger>
-                    <SheetContent side="right" className="w-full sm:w-[400px] overflow-y-auto">
+                    <SheetContent side="right" className="w-full overflow-y-auto sm:w-[400px]">
                         <SheetHeader className="mb-6">
-                            <SheetTitle>Filtros Avanzados</SheetTitle>
+                            <SheetTitle className="font-heading">Filtros Avanzados</SheetTitle>
                             <SheetDescription>
                                 Refina tu búsqueda en el inventario actual.
                             </SheetDescription>
                         </SheetHeader>
-                        <div className="space-y-8 mt-2">
+                        <div className="mt-2 space-y-8">
                             {/* Grupo Marca */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-semibold flex items-center text-slate-700">
-                                    <Tag className="w-4 h-4 mr-2 text-indigo-500" />
+                                <Label className="flex items-center text-sm font-semibold text-ink">
+                                    <Tag className="mr-2 h-4 w-4 text-brand" />
                                     Marca
                                 </Label>
                                 <Select
                                     value={advancedFilters.brand}
                                     onValueChange={(val) => setAdvancedFilters(prev => ({ ...prev, brand: val || 'todas' }))}
                                 >
-                                    <SelectTrigger className="w-full h-12 bg-slate-50 border-transparent hover:bg-slate-100 transition-colors focus:ring-indigo-500">
+                                    <SelectTrigger className="h-12 w-full border-hairline bg-secondary transition-colors hover:bg-accent">
                                         <SelectValue placeholder="Todas las marcas" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todas" className="font-medium text-slate-500">Todas las marcas</SelectItem>
+                                        <SelectItem value="todas" className="font-medium text-muted-foreground">Todas las marcas</SelectItem>
                                         {dynamicOptions.brands.map(b => (
                                             <SelectItem key={b} value={b}>{b}</SelectItem>
                                         ))}
@@ -349,19 +376,19 @@ export default function InventoryPage() {
 
                             {/* Grupo Categoría */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-semibold flex items-center text-slate-700">
-                                    <Layers className="w-4 h-4 mr-2 text-indigo-500" />
+                                <Label className="flex items-center text-sm font-semibold text-ink">
+                                    <Layers className="mr-2 h-4 w-4 text-brand" />
                                     Categoría
                                 </Label>
                                 <Select
                                     value={advancedFilters.category}
                                     onValueChange={(val) => setAdvancedFilters(prev => ({ ...prev, category: val || 'todas' }))}
                                 >
-                                    <SelectTrigger className="w-full h-12 bg-slate-50 border-transparent hover:bg-slate-100 transition-colors focus:ring-indigo-500">
+                                    <SelectTrigger className="h-12 w-full border-hairline bg-secondary transition-colors hover:bg-accent">
                                         <SelectValue placeholder="Todas las categorías" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todas" className="font-medium text-slate-500">Todas las categorías</SelectItem>
+                                        <SelectItem value="todas" className="font-medium text-muted-foreground">Todas las categorías</SelectItem>
                                         {dynamicOptions.categories.map(c => (
                                             <SelectItem key={c} value={c}>{c}</SelectItem>
                                         ))}
@@ -369,18 +396,18 @@ export default function InventoryPage() {
                                 </Select>
                             </div>
 
-                            {/* Grupo Talla (Pills Interactivas) */}
+                            {/* Grupo Talla (pills interactivas) */}
                             <div className="space-y-3">
-                                <Label className="text-sm font-semibold flex items-center text-slate-700">
-                                    <Ruler className="w-4 h-4 mr-2 text-indigo-500" />
+                                <Label className="flex items-center text-sm font-semibold text-ink">
+                                    <Ruler className="mr-2 h-4 w-4 text-brand" />
                                     Talla
                                 </Label>
                                 <div className="flex flex-wrap gap-2">
                                     <button
                                         onClick={() => setAdvancedFilters(prev => ({ ...prev, size: 'todas' }))}
-                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${advancedFilters.size === 'todas'
-                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${advancedFilters.size === 'todas'
+                                            ? 'bg-ink text-white'
+                                            : 'bg-secondary text-muted-foreground hover:bg-accent'
                                             }`}
                                     >
                                         Todas
@@ -391,9 +418,9 @@ export default function InventoryPage() {
                                             <button
                                                 key={s}
                                                 onClick={() => setAdvancedFilters(prev => ({ ...prev, size: s }))}
-                                                className={`px-4 py-2 rounded-lg text-sm font-bold uppercase transition-all ${isSelected
-                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 ring-2 ring-indigo-600 ring-offset-1'
-                                                        : 'bg-white border border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50'
+                                                className={`rounded-lg px-4 py-2 font-mono text-sm font-bold uppercase transition-all ${isSelected
+                                                    ? 'bg-ink text-white'
+                                                    : 'border border-hairline bg-card text-ink hover:border-brand/40 hover:bg-secondary'
                                                     }`}
                                             >
                                                 {s}
@@ -413,7 +440,7 @@ export default function InventoryPage() {
                                     Limpiar
                                 </Button>
                             )}
-                            <SheetClose className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full sm:w-auto">
+                            <SheetClose className="inline-flex h-10 w-full items-center justify-center whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:w-auto">
                                 Aplicar Filtros
                             </SheetClose>
                         </SheetFooter>
@@ -422,21 +449,23 @@ export default function InventoryPage() {
             </div>
 
             {/* ── Filtros de estado (pills horizontales con scroll) ──── */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
                 {STATUS_FILTERS.map(({ label, value }) => {
                     const count = value === 'todos' ? (items?.length ?? 0) : (counts[value] ?? 0);
                     const isActive = statusFilter === value;
+                    const dot = value !== 'todos' ? STATUS_CONFIG[value]?.dot : null;
                     return (
                         <button
                             key={value}
                             onClick={() => setStatusFilter(value)}
-                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${isActive
-                                ? 'bg-gray-900 text-white border-gray-900'
-                                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                            className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${isActive
+                                ? 'border-ink bg-ink text-white'
+                                : 'border-hairline bg-card text-muted-foreground hover:border-muted-foreground/40'
                                 }`}
                         >
+                            {dot && <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />}
                             {label}
-                            <span className={`text-[10px] ${isActive ? 'opacity-70' : 'text-gray-400'}`}>
+                            <span className={`font-mono text-[10px] ${isActive ? 'opacity-70' : 'text-muted-foreground/70'}`}>
                                 {count}
                             </span>
                         </button>
@@ -446,7 +475,7 @@ export default function InventoryPage() {
 
             {/* Contador de resultados cuando hay búsqueda activa */}
             {searchQuery && (
-                <p className="text-xs text-gray-500 -mt-2">
+                <p className="-mt-2 text-xs text-muted-foreground">
                     {filtered.length === 0
                         ? 'Sin resultados para esa búsqueda.'
                         : `${filtered.length} prenda${filtered.length !== 1 ? 's' : ''} encontrada${filtered.length !== 1 ? 's' : ''}`
@@ -456,7 +485,7 @@ export default function InventoryPage() {
 
             {/* ── Vista MÓVIL: skeleton o tarjetas ──────────────── */}
             {isLoading ? <MobileSkeletons /> : (
-                <div className="sm:hidden space-y-2">
+                <div className="space-y-3 sm:hidden">
                     {filtered.map(item => (
                         <ItemCard
                             key={item.id}
@@ -466,7 +495,7 @@ export default function InventoryPage() {
                         />
                     ))}
                     {filtered.length === 0 && (
-                        <div className="text-center py-12 text-gray-400">
+                        <div className="py-12 text-center text-sm text-muted-foreground">
                             {searchQuery ? `Sin resultados para "${searchRaw}"` : 'No hay prendas con ese estatus.'}
                         </div>
                     )}
@@ -474,74 +503,77 @@ export default function InventoryPage() {
             )}
 
             {/* ── Vista DESKTOP: skeleton o tabla ──────────────────── */}
-            <Card className="hidden sm:block">
-                <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Listado de Prendas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[80px]">ID</TableHead>
-                                    <TableHead>Producto</TableHead>
-                                    <TableHead>Marca</TableHead>
-                                    <TableHead>Talla</TableHead>
-                                    <TableHead>Color</TableHead>
-                                    <TableHead>Estatus</TableHead>
-                                    <TableHead className="text-right">Precio Base / Venta</TableHead>                                      <TableHead className="w-[60px]"></TableHead>                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {/* Skeleton mientras carga */}
-                                {isLoading && <TableSkeletons />}
+            <div className="hidden overflow-hidden rounded-xl border border-hairline bg-card shadow-soft sm:block">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="border-hairline hover:bg-transparent">
+                            <TableHead className="w-[80px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">ID</TableHead>
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Producto</TableHead>
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Marca</TableHead>
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Talla</TableHead>
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Color</TableHead>
+                            <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Estatus</TableHead>
+                            <TableHead className="text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Precio Base / Venta</TableHead>
+                            <TableHead className="w-[60px] text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Acción</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {/* Skeleton mientras carga */}
+                        {isLoading && <TableSkeletons />}
 
-                                {/* Datos */}
-                                {!isLoading && filtered.map((item: InventoryItemWithRelations) => (
-                                    <TableRow
-                                        key={item.id}
-                                        className="cursor-pointer hover:bg-gray-50"
-                                        onClick={() => openItem(item)}
+                        {/* Datos */}
+                        {!isLoading && filtered.map((item: InventoryItemWithRelations) => (
+                            <TableRow
+                                key={item.id}
+                                className="cursor-pointer border-hairline hover:bg-secondary/60"
+                                onClick={() => openItem(item)}
+                            >
+                                <TableCell className="font-mono text-muted-foreground">#{item.id}</TableCell>
+                                <TableCell>
+                                    <div className="font-semibold text-ink">{item.products?.name}</div>
+                                    {item.products?.categories?.name && (
+                                        <div className="text-xs text-muted-foreground">{item.products.categories.name}</div>
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">{item.products?.brands?.name}</TableCell>
+                                <TableCell><SizeChip size={item.size} /></TableCell>
+                                <TableCell className="capitalize text-ink">{item.color}</TableCell>
+                                <TableCell><StatusPill status={item.status} /></TableCell>
+                                <TableCell className="text-right">
+                                    {item.status === 'vendido'
+                                        ? <span className="font-mono font-semibold text-status-available">{formatCurrency(item.price_sold)}</span>
+                                        : <span className="font-mono text-ink">{formatCurrency(item.products?.base_price)}</span>
+                                    }
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            openEditItem(item);
+                                        }}
+                                        className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
+                                        aria-label="Editar"
                                     >
-                                        <TableCell className="font-medium text-gray-400">#{item.id}</TableCell>
-                                        <TableCell className="font-medium">{item.products?.name}</TableCell>
-                                        <TableCell>{item.products?.brands?.name}</TableCell>
-                                        <TableCell className="uppercase">{item.size}</TableCell>
-                                        <TableCell className="capitalize">{item.color}</TableCell>
-                                        <TableCell>
-                                            <Badge className={statusColorMap[item.status] ?? 'bg-gray-100 text-gray-800'}>
-                                                {item.status.toUpperCase()}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {item.status === 'vendido'
-                                                ? <span className="font-bold text-green-700">${item.price_sold}</span>
-                                                : <span className="text-gray-600">${item.products?.base_price}</span>
-                                            }
-                                        </TableCell>                                          <TableCell className="text-right">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openEditItem(item);
-                                                }}
-                                                className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-full transition-colors active:scale-95"
-                                                aria-label="Editar"
-                                            >
-                                                <Edit2 className="h-4 w-4" />
-                                            </button>
-                                        </TableCell>                                    </TableRow>
-                                ))}
-                                {filtered.length === 0 && (
-                                    <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center text-gray-400">
-                                            {searchQuery ? `Sin resultados para "${searchRaw}"` : 'No hay artículos con ese estatus.'}
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                        <Edit2 className="h-4 w-4" />
+                                    </button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        {!isLoading && filtered.length === 0 && (
+                            <TableRow className="hover:bg-transparent">
+                                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                                    {searchQuery ? `Sin resultados para "${searchRaw}"` : 'No hay artículos con ese estatus.'}
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+                {!isLoading && filtered.length > 0 && (
+                    <div className="border-t border-hairline px-4 py-3 text-xs text-muted-foreground">
+                        Mostrando {filtered.length} de {items?.length ?? 0} prendas
                     </div>
-                </CardContent>
-            </Card>
+                )}
+            </div>
 
             {/* ── Modales ───────────────────────────────────────────── */}
             <TransactionModal
