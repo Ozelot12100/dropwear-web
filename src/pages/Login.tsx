@@ -146,9 +146,20 @@ export default function Login() {
                             </Button>
                         </form>
                     </CardContent>
-                    <CardFooter className="flex justify-center border-t border-gray-100 pt-6 pb-6">
+                    <CardFooter className="flex flex-col items-center gap-2 border-t border-gray-100 pt-6 pb-6">
                         <p className="text-xs text-gray-400 font-medium">
                             Sistema exclusivo para personal autorizado.
+                        </p>
+                        <p className="text-xs text-gray-400">
+                            Diseñado y desarrollado por{" "}
+                            <a
+                                href="https://www.davidramirez.com.mx/?utm_source=dropwear&utm_medium=footer&utm_campaign=credito"
+                                target="_blank"
+                                rel="noopener noreferrer author"
+                                className="font-semibold text-gray-500 transition-colors hover:text-gray-900"
+                            >
+                                David A. Ramírez
+                            </a>
                         </p>
                     </CardFooter>
                 </Card>
