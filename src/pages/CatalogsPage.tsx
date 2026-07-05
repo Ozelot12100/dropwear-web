@@ -418,12 +418,14 @@ export default function CatalogsPage() {
             </div>
             <div className="rounded-xl border border-hairline bg-card shadow-soft">
                 {/* Pestañas */}
-                <div className="flex gap-2 border-b border-hairline px-4">
+                <div role="tablist" aria-label="Catálogos" className="flex gap-2 border-b border-hairline px-4">
                     {TABS.map(t => (
                         <button
                             key={t.id}
+                            role="tab"
+                            aria-selected={active === t.id}
                             onClick={() => setActive(t.id)}
-                            className={`-mb-px border-b-2 px-3 py-3 text-sm font-semibold transition-colors ${active === t.id
+                            className={`-mb-px border-b-2 px-3 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${active === t.id
                                 ? 'border-ink text-ink'
                                 : 'border-transparent text-muted-foreground hover:text-ink'
                                 }`}

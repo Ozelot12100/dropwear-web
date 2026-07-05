@@ -1,0 +1,8 @@
+dist
+node_modules
+coverage
+src/types/database.types.ts
+supabase/functions
+pnpm-lock.yaml
+package-lock.json
+*.md

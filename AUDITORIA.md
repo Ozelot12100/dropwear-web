@@ -51,21 +51,21 @@ Registro de la auditoría técnica realizada el **5 de julio de 2026** (código,
 | H5 | 🟠 | Edge Functions: HTTP 200 en errores | ✅ Resuelto |
 | H6 | 🟠 | StaffPage god-component + fetch manual | ✅ Resuelto |
 | H7 | 🟠 | Sin observabilidad | 🟡 ErrorBoundary ✅ · Sentry pendiente |
-| H8 | 🟠 | Rol/ban no se reflejan sin recargar | ⏸️ Pendiente |
+| H8 | 🟠 | Rol/ban no se reflejan sin recargar | ✅ Resuelto (revalida al foco; cierra sesión si bloquean) |
 | H9 | 🟠 | `database.types.ts` a mano | ✅ Resuelto |
 | M1 | 🟡 | Constraints de integridad faltantes | ✅ Resuelto |
 | M2 | 🟡 | Visibilidad financiera inconsistente | ⏸️ Pendiente (nivel columna) |
 | M3 | 🟡 | "Ventas Hoy" se infla al editar | ✅ Resuelto |
-| M4 | 🟡 | Dashboard hace polling en vez de realtime | ⏸️ Pendiente (menor) |
+| M4 | 🟡 | Dashboard hace polling en vez de realtime | ✅ Resuelto (realtime sobre inventory_items) |
 | M5 | 🟡 | `alert()`/`confirm()` nativos | ✅ Resuelto |
 | M6 | 🟡 | Authz de cambio de contraseña propia | ✅ Verificado seguro |
 | M7 | 🟡 | Fuente Geist con subsets innecesarios | ➖ N/A (unicode-range ya lo evita) |
 | M8 | 🟡 | Favicon de 48 KB | ✅ Resuelto |
-| M9 | 🟡 | Sin Prettier ni pre-commit hooks | ⏸️ Pendiente |
+| M9 | 🟡 | Sin Prettier ni pre-commit hooks | ✅ Prettier + `engines` (husky opcional) |
 | L1 | 🔵 | QueryClient sin defaults | ✅ Resuelto |
 | L2 | 🔵 | vercel.json sin headers / falta .env.example | ✅ Resuelto |
-| L3 | 🔵 | Stack en versiones "bleeding-edge" | ⏸️ Pendiente (fijar versiones) |
-| L4 | 🔵 | Accesibilidad (aria-labels, lang, tabs) | ⏸️ Pendiente |
+| L3 | 🔵 | Stack en versiones "bleeding-edge" | ✅ `.npmrc` save-exact + `engines` (lockfile ya reproducible) |
+| L4 | 🔵 | Accesibilidad (aria-labels, lang, tabs) | ✅ `lang="es"` + roles de tabs + focus visible |
 | L5 | 🔵 | Limpieza menor (tipos dup., colSpan) | 🟡 colSpan ✅ · resto pendiente |
 
 ## Pendiente
@@ -74,13 +74,11 @@ Registro de la auditoría técnica realizada el **5 de julio de 2026** (código,
 - **Sentry** — crear el proyecto y definir `VITE_SENTRY_DSN` (el hook ya está cableado).
 - **Producto / datos** — fotos de prendas, cliente en apartados (nombre/contacto/vencimiento), y costo de prenda para calcular margen. Son huecos del modelo de datos que requieren decisión de negocio.
 
-**Técnico, de menor prioridad (se puede hacer sin dependencias):**
-- H8 · suscribir realtime al propio perfil (rol/ban en vivo).
-- M2 · ocultar `price_sold` a roles no financieros a nivel de columna (vista o grants).
-- M4 · Dashboard por suscripción realtime en vez de polling de 30 s.
-- M9 · Prettier + husky/lint-staged; fijar `engines` de Node.
-- L3 · fijar versiones exactas del stack y cadencia de actualización deliberada.
-- L4 · accesibilidad (aria-labels, `lang="es"`, roles de tabs).
+**Técnico, aún pendiente:**
+- M2 · ocultar `price_sold` a roles no financieros a **nivel de columna** (vista o grants en Postgres). Requiere una migración adicional a producción **y** refactor de las queries de inventario/bitácora para leer de una vista sin la columna; por eso se dejó aparte. Hoy la restricción es solo en la UI (`canSeeFinancial`).
+- M9 (opcional) · husky + lint-staged para formateo pre-commit (se omitió para no interferir con el flujo de commits; Prettier ya está configurado).
+
+**Resueltos en esta iteración:** H8 (revalidación del perfil al foco + cierre si bloquean), M4 (realtime en Dashboard), M9 (Prettier + `engines`), L3 (`.npmrc` save-exact + `engines`), L4 (`lang="es"`, roles ARIA en tabs, focus visible).
 
 ---
 

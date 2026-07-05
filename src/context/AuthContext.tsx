@@ -36,6 +36,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
+            // H8: si un administrador bloqueó la cuenta (is_active=false), cerrar
+            // sesión de inmediato en vez de dejar la sesión activa.
+            if (data?.is_active === false) {
+                setProfile(null);
+                await supabase.auth.signOut();
+                return;
+            }
+
             setProfile(data);
         } catch (error) {
             console.error('Unexpected error fetching profile:', error);
@@ -82,6 +90,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             subscription.unsubscribe();
         };
     }, []);
+
+    // H8: al recuperar el foco / volver a la pestaña, revalida el perfil para
+    // reflejar cambios de rol o bloqueo hechos por un admin sin recargar la página.
+    useEffect(() => {
+        if (!user?.id) return;
+        const revalidate = () => {
+            if (document.visibilityState === 'hidden') return;
+            fetchUserProfile(user.id);
+        };
+        window.addEventListener('focus', revalidate);
+        document.addEventListener('visibilitychange', revalidate);
+        return () => {
+            window.removeEventListener('focus', revalidate);
+            document.removeEventListener('visibilitychange', revalidate);
+        };
+    }, [user?.id]);
 
     const refreshProfile = async () => {
         if (user?.id) {

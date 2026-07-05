@@ -1,21 +1,37 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { dashboardService } from '../services/dashboard';
 import { Skeleton } from '../components/ui/skeleton';
 import { Package, Bookmark, Tag, Banknote, Calendar, type LucideIcon } from 'lucide-react';
 
 export default function DashboardPage() {
+    const queryClient = useQueryClient();
+
     const { data: stats, isLoading: isLoadingStats } = useQuery({
         queryKey: ['dashboardStats'],
         queryFn: dashboardService.getDashboardStats,
-        refetchInterval: 30000, // Refresca cada 30 segundos
     });
 
     const { data: recentLogs, isLoading: isLoadingLogs } = useQuery({
         queryKey: ['recentActivity'],
         queryFn: dashboardService.getRecentActivity,
-        refetchInterval: 30000,
     });
+
+    // Realtime en lugar de polling: cualquier cambio en el inventario refresca
+    // métricas y actividad. Los cambios de estado y altas escriben el ítem y su
+    // log en la misma transacción, así que escuchar inventory_items cubre todo.
+    useEffect(() => {
+        const channel = supabase
+            .channel('dashboard-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
+                queryClient.invalidateQueries({ queryKey: ['recentActivity'] });
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [queryClient]);
 
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
