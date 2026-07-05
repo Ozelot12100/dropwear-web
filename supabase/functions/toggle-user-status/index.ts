@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const json = (body: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status,
+  })
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -13,12 +19,12 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) throw new Error('Falta el token de autorización')
+    if (!authHeader) return json({ error: 'Falta el token de autorización.' }, 401)
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { 
+      {
         global: { headers: { Authorization: authHeader } },
         auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
       }
@@ -26,7 +32,7 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '').trim()
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
-    if (userError || !user) throw new Error(`Token inválido o expirado: ${userError?.message || 'Desconocido'}`)
+    if (userError || !user) return json({ error: 'Token inválido o expirado.' }, 401)
 
     const { data: profile } = await supabaseClient
       .from('user_profiles')
@@ -35,20 +41,15 @@ Deno.serve(async (req) => {
       .single()
 
     if (!profile || profile.role !== 'superadmin') {
-      return new Response(
-        JSON.stringify({ error: 'Permisos insuficientes. Solo un superadmin puede bloquear cuentas.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      )
+      return json({ error: 'Permisos insuficientes. Solo un superadmin puede bloquear cuentas.' }, 403)
     }
 
-    const body = await req.json()
-    const { target_user_id, action } = body
-
+    const { target_user_id, action } = await req.json()
     if (!target_user_id || (action !== 'ban' && action !== 'unban')) {
-      return new Response(
-        JSON.stringify({ error: 'Datos inválidos. Verifica el ID de usuario y la acción.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      )
+      return json({ error: 'Datos inválidos. Verifica el ID de usuario y la acción.' }, 400)
+    }
+    if (target_user_id === user.id) {
+      return json({ error: 'No puedes bloquear tu propia cuenta.' }, 403)
     }
 
     const supabaseAdmin = createClient(
@@ -56,39 +57,27 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // 1. Aplicar baneo en la capa de Autenticación
+    // 1. Aplicar/quitar baneo en la capa de Autenticación (100 años).
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
       target_user_id,
-      { ban_duration: action === 'ban' ? '876000h' : 'none' } // 100 años o quitar ban
+      { ban_duration: action === 'ban' ? '876000h' : 'none' }
     )
+    if (authError) return json({ error: authError.message }, 400)
 
-    if (authError) {
-      return new Response(
-        JSON.stringify({ error: authError.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      )
-    }
-
-    // 2. Reflejar el estado en user_profiles (requiere que exista la columna is_active)
+    // 2. Reflejar el estado en user_profiles.is_active.
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .update({ is_active: action === 'unban' })
       .eq('id', target_user_id)
 
     if (profileError) {
-      // Ignorar si la columna no existe aún, pero reportarlo en console para logs
-      console.error("No se pudo actualizar is_active en user_profiles", profileError);
+      // No es fatal: el baneo en Auth ya se aplicó. Se registra para diagnóstico.
+      console.error('No se pudo actualizar is_active en user_profiles', profileError)
     }
 
-    return new Response(
-      JSON.stringify({ message: `Usuario ${action === 'ban' ? 'bloqueado' : 'desbloqueado'} exitosamente.` }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
+    return json({ message: `Usuario ${action === 'ban' ? 'bloqueado' : 'desbloqueado'} exitosamente.` }, 200)
 
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: err.message || 'Error desconocido' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : 'Error desconocido.' }, 500)
   }
 })

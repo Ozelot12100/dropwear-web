@@ -8,6 +8,41 @@ interface CreateUserPayload {
     role: UserRole;
 }
 
+/**
+ * Invoca una Edge Function y devuelve su cuerpo, lanzando un Error con el
+ * MENSAJE REAL en caso de fallo. Es robusto ante dos estilos de error:
+ *   - Función que responde con código HTTP de error (403/400/500): supabase-js
+ *     pone `error` (FunctionsHttpError) y el mensaje real vive en el cuerpo,
+ *     accesible vía `error.context.json()`.
+ *   - Función que responde 200 con `{ error }` (patrón legado).
+ */
+async function invokeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
+    const { data, error } = await supabase.functions.invoke(name, { body });
+
+    if (error) {
+        let message = error.message || 'Error de conexión con el servidor.';
+        const context = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
+        if (context && typeof context.json === 'function') {
+            try {
+                const parsed = await context.json();
+                if (parsed?.error) message = parsed.error;
+            } catch {
+                // El cuerpo no era JSON; conservamos el mensaje genérico.
+            }
+        }
+        console.error(`Edge Function ${name} falló:`, message);
+        throw new Error(message);
+    }
+
+    // Compatibilidad con funciones que aún responden 200 con { error }.
+    if (data?.error) {
+        console.error(`Edge Function ${name} retornó un error controlado:`, data.error);
+        throw new Error(data.error);
+    }
+
+    return data as T;
+}
+
 export const usersService = {
     // 1. Obtener todos los perfiles de la base de datos (para mostrar la tabla)
     async getUsers(): Promise<UserProfile[]> {
@@ -23,100 +58,28 @@ export const usersService = {
         return data || [];
     },
 
-    // 2. Ejecutar la Edge Function para crear un usuario de forma segura
-    async createUser(payload: CreateUserPayload): Promise<{ user: unknown, message: string }> {
-        // La librería supabase.functions.invoke inyecta en automático el JWT (sesión) del superadmin actual
-        // y llama a la Edge Function `create-user` del proyecto configurado en VITE_SUPABASE_URL.
-        const { data, error } = await supabase.functions.invoke('create-user', {
-            body: payload
-        });
-
-        // Supabase-js detecta si hubo un rechazo de red o de ejecución en la Edge Function
-        if (error) {
-            console.error('Error invocando Edge Function create-user:', error);
-            throw new Error(error.message || 'Error de conexión con el servidor.');
-        }
-
-        // Si la función nos responde exitosamente un JSON pero con una propiedad { error: 'Mensaje' }
-        if (data?.error) {
-            console.error('La Edge Function retornó un error controlado:', data.error);
-            throw new Error(data.error);
-        }
-
-        return data;
+    // 2. Crear un usuario de forma segura (Edge Function con privilegios de admin)
+    createUser(payload: CreateUserPayload): Promise<{ user: unknown; message: string }> {
+        return invokeFunction('create-user', { ...payload });
     },
 
-    // 3. Ejecutar la Edge Function para restablecer contraseña de cualquier usuario
-    async resetPassword(targetUserId: string, newPassword: string): Promise<{ message: string }> {
-        const { data, error } = await supabase.functions.invoke('reset-password', {
-            body: { target_user_id: targetUserId, new_password: newPassword }
-        });
-
-        if (error) {
-            console.error('Error invocando Edge Function reset-password:', error);
-            throw new Error(error.message || 'Error de conexión con el servidor.');
-        }
-
-        if (data?.error) {
-            console.error('La Edge Function retornó un error controlado:', data.error);
-            throw new Error(data.error);
-        }
-
-        return data;
+    // 3. Restablecer la contraseña de un usuario (superadmin) o la propia
+    resetPassword(targetUserId: string, newPassword: string): Promise<{ message: string }> {
+        return invokeFunction('reset-password', { target_user_id: targetUserId, new_password: newPassword });
     },
 
-    // 4. Ejecutar la Edge Function para bloquear/desbloquear un usuario
-    async toggleUserStatus(targetUserId: string, action: 'ban' | 'unban'): Promise<{ message: string }> {
-        const { data, error } = await supabase.functions.invoke('toggle-user-status', {
-            body: { target_user_id: targetUserId, action }
-        });
-
-        if (error) {
-            console.error('Error invocando Edge Function toggle-user-status:', error);
-            throw new Error(error.message || 'Error de conexión con el servidor.');
-        }
-
-        if (data?.error) {
-            console.error('La Edge Function retornó un error controlado:', data.error);
-            throw new Error(data.error);
-        }
-
-        return data;
+    // 4. Bloquear/desbloquear un usuario (soft-delete vía ban)
+    toggleUserStatus(targetUserId: string, action: 'ban' | 'unban'): Promise<{ message: string }> {
+        return invokeFunction('toggle-user-status', { target_user_id: targetUserId, action });
     },
 
-    // 5. Actualizar el rol de un usuario (requiere Edge Function por verificación de seguridad superadmin)
-    async updateUserRole(targetUserId: string, newRole: string): Promise<{ message: string }> {
-        const { data, error } = await supabase.functions.invoke('update-user-role', {
-            body: { target_user_id: targetUserId, new_role: newRole }
-        });
-
-        if (error) {
-            console.error('Error invocando Edge Function update-user-role:', error);
-            throw new Error(error.message || 'Error de conexión con el servidor.');
-        }
-
-        if (data?.error) {
-            console.error('La Edge Function retornó un error controlado:', data.error);
-            throw new Error(data.error);
-        }
-
-        return data;
+    // 5. Actualizar el rol de un usuario (solo superadmin)
+    updateUserRole(targetUserId: string, newRole: string): Promise<{ message: string }> {
+        return invokeFunction('update-user-role', { target_user_id: targetUserId, new_role: newRole });
     },
 
-    // 6. Actualizar el nombre completo del propio usuario usando Edge Function para evitar problemas de RLS
+    // 6. Actualizar el nombre completo del propio usuario (evita bloqueos de RLS)
     async updateProfileName(newName: string): Promise<void> {
-        const { data, error } = await supabase.functions.invoke('update-profile-name', {
-            body: { new_name: newName }
-        });
-
-        if (error) {
-            console.error('Error invocando Edge Function update-profile-name:', error);
-            throw new Error(error.message || 'Error de conexión con el servidor.');
-        }
-
-        if (data?.error) {
-            console.error('La Edge Function retornó un error controlado:', data.error);
-            throw new Error(data.error);
-        }
-    }
+        await invokeFunction('update-profile-name', { new_name: newName });
+    },
 };

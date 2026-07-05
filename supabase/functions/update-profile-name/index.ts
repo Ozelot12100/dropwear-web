@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const json = (body: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status,
+  })
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -13,12 +19,12 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) throw new Error('Falta el token de autorización')
+    if (!authHeader) return json({ error: 'Falta el token de autorización.' }, 401)
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { 
+      {
         global: { headers: { Authorization: authHeader } },
         auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
       }
@@ -26,45 +32,31 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '').trim()
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
-    if (userError || !user) throw new Error(`Token inválido o expirado: ${userError?.message || 'Desconocido'}`)
+    if (userError || !user) return json({ error: 'Token inválido o expirado.' }, 401)
 
-    const body = await req.json()
-    const { new_name } = body
-
-    if (!new_name || new_name.trim().length < 3) {
-      return new Response(
-        JSON.stringify({ error: 'El nombre debe tener al menos 3 caracteres.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      )
+    const { new_name } = await req.json()
+    if (!new_name || String(new_name).trim().length < 3) {
+      return json({ error: 'El nombre debe tener al menos 3 caracteres.' }, 400)
     }
 
+    // Actualiza el propio nombre con privilegios de admin (evita bloqueos de RLS).
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Actualizar el nombre en user_profiles usando permisos de admin para evitar problemas de RLS
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .update({ full_name: new_name.trim() })
+      .update({ full_name: String(new_name).trim() })
       .eq('id', user.id)
 
     if (profileError) {
-      return new Response(
-        JSON.stringify({ error: `Error al actualizar el nombre: ${profileError.message}` }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      )
+      return json({ error: `Error al actualizar el nombre: ${profileError.message}` }, 500)
     }
 
-    return new Response(
-      JSON.stringify({ message: `Nombre actualizado exitosamente.` }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
+    return json({ message: 'Nombre actualizado exitosamente.' }, 200)
 
-  } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: err.message || 'Error desconocido' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : 'Error desconocido.' }, 500)
   }
 })
