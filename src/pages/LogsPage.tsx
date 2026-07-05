@@ -137,9 +137,11 @@ export default function LogsPage() {
         return result;
     }, [logs, actionFilter, advancedFilters]);
 
-    // Contadores por acción para las pills (actualizados con filtros avanzados)
+    // Contadores por acción para las pills. Se calculan sobre TODOS los logs
+    // (no sobre `filtered`, que ya aplicó el filtro de acción) para que cada
+    // pill muestre su total real y no 0 al seleccionar otra.
     const counts = useMemo(() => {
-        return filtered.reduce<Record<string, number>>((acc, l) => {
+        return (logs ?? []).reduce<Record<string, number>>((acc, l) => {
             acc[l.action] = (acc[l.action] ?? 0) + 1;
             return acc;
         }, {});

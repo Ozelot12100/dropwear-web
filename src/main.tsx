@@ -11,8 +11,18 @@ import './index.css'
 // Registra handlers globales de errores no capturados (Sentry-ready)
 initMonitoring();
 
-// Instancia global de React Query para caché de peticiones de tablas
-const queryClient = new QueryClient();
+// Instancia global de React Query. Defaults afinados para red lenta (móvil):
+// evita refetches redundantes; los datos en vivo llegan por la suscripción Realtime.
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 30_000,
+            gcTime: 5 * 60_000,
+            retry: 1,
+            refetchOnWindowFocus: false,
+        },
+    },
+});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

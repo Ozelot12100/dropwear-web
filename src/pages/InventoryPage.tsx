@@ -245,7 +245,7 @@ export default function InventoryPage() {
         }
 
         return result;
-    }, [items, statusFilter, searchQuery]);
+    }, [items, statusFilter, searchQuery, advancedFilters]);
 
     // Contadores por estado (para las pills de filtro)
     const counts = items?.reduce<Record<string, number>>((acc, i) => {
