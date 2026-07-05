@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Gates DUROS: fallan el pipeline si algo se rompe.
+      - name: Typecheck & build
+        run: npm run build
+
+      - name: Tests
+        run: npm test
+
+      # Lint: informativo por ahora (hay deuda preexistente que se limpiará de
+      # forma incremental). Cuando quede en cero, quitar `continue-on-error`
+      # para volverlo un gate bloqueante.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true

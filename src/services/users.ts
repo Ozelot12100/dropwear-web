@@ -24,9 +24,9 @@ export const usersService = {
     },
 
     // 2. Ejecutar la Edge Function para crear un usuario de forma segura
-    async createUser(payload: CreateUserPayload): Promise<{ user: any, message: string }> {
-        // La librería supabase.functions.invoke inyecta en automático el JWT (sesión) del superadmin actual.
-        // Pega de manera silenciosa hacia https://ticjeryrdulymcvyhmlh.supabase.co/functions/v1/create-user
+    async createUser(payload: CreateUserPayload): Promise<{ user: unknown, message: string }> {
+        // La librería supabase.functions.invoke inyecta en automático el JWT (sesión) del superadmin actual
+        // y llama a la Edge Function `create-user` del proyecto configurado en VITE_SUPABASE_URL.
         const { data, error } = await supabase.functions.invoke('create-user', {
             body: payload
         });

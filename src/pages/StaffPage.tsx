@@ -499,7 +499,7 @@ export default function StaffPage() {
                             </TableRow>
                         ) : (
                             users.map((user) => {
-                                const isActive = (user as any).is_active !== false; // Si no existe la columna asume activo
+                                const isActive = user.is_active !== false; // false = colaborador bloqueado
                                 return (
                                 <TableRow key={user.id} className={!isActive ? "bg-red-50/50 opacity-80" : "hover:bg-gray-50/50"}>
                                     <TableCell className="font-medium text-gray-900">

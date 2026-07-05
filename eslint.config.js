@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // Las Edge Functions viven en el runtime Deno (tipos/globals propios); no las
+  // lintea el config del frontend.
+  globalIgnores(['dist', 'supabase']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
