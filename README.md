@@ -19,6 +19,9 @@ Para que el próximo equipo de desarrollo o compañeros programadores puedan ent
 3. **[Hoja de Ruta (Lo que falta por construir)](./ROADMAP.md)**
    Conoce las funcionalidades futuras planeadas tanto para potenciar las ventas desde el celular (Pull to refresh, Swipe, escaner etc.) como las tareas gerenciales estratégicas desde PC (Cortes de caja, Analítica, Exportación a Excel).
 
+4. **[Auditoría Técnica y Endurecimiento](./AUDITORIA.md)**
+   Registro de la auditoría de seguridad, arquitectura, escalabilidad y calidad (5-jul-2026) y el estado de remediación de cada hallazgo. Léelo para entender qué se endureció (RLS por rol, operaciones atómicas, tests + CI, etc.) y qué queda pendiente.
+
 ---
 
 ## 🚀 Inicio Rápido (Quick Start)
