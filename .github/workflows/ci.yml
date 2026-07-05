@@ -17,8 +17,11 @@ jobs:
           node-version: 22
           cache: npm
 
+      # `npm install` (no `npm ci`): el package-lock.json se genera en Windows y
+      # omite deps nativas opcionales de Linux (motor de Vite 8); install las
+      # resuelve por plataforma sin exigir sync estricto del lock.
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       # Gates DUROS: fallan el pipeline si algo se rompe.
       - name: Typecheck & build
