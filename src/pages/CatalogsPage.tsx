@@ -6,16 +6,46 @@ import type { ProductWithRelations } from '../services/catalogs';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Pencil, Trash2, Plus } from 'lucide-react';
 
+// ── Estilos compartidos (diseño Stitch) ───────────────────────────────────────
+const selectClass =
+    'flex h-11 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2';
+const errorBox = 'rounded-lg border border-status-returned/30 bg-status-returned/10 p-2.5 text-sm text-status-returned';
+const capsHead = 'text-[11px] font-semibold uppercase tracking-wider text-muted-foreground';
+
+const formatCurrency = (amount: number | null | undefined) =>
+    amount == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+
 function parseFKError(msg: string): string {
     if (msg.includes('foreign key constraint')) return 'No se puede eliminar: hay registros asociados en uso.';
     if (msg.includes('unique')) return 'Ya existe un registro con ese nombre.';
     return msg;
+}
+
+// Botones de acción (editar / eliminar) reutilizables
+function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+    return (
+        <div className="flex justify-end gap-1">
+            <button
+                onClick={onEdit}
+                className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
+                aria-label="Editar"
+            >
+                <Pencil className="h-4 w-4" />
+            </button>
+            <button
+                onClick={onDelete}
+                className="rounded-full p-2 text-status-returned transition-colors hover:bg-status-returned/10 active:scale-95"
+                aria-label="Eliminar"
+            >
+                <Trash2 className="h-4 w-4" />
+            </button>
+        </div>
+    );
 }
 
 // ── MARCAS ───────────────────────────────────────────────────────────────────
@@ -46,24 +76,29 @@ function BrandsTab() {
     return (
         <div className="space-y-4">
             <div className="flex justify-end">
-                <Button size="sm" className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" />Nueva Marca</Button>
+                <Button className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" />Nueva Marca</Button>
             </div>
-            <div className="rounded-md border">
+            <div className="overflow-hidden rounded-xl border border-hairline">
                 <Table>
-                    <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Nombre</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+                    <TableHeader>
+                        <TableRow className="border-hairline hover:bg-transparent">
+                            <TableHead className={`w-16 ${capsHead}`}>ID</TableHead>
+                            <TableHead className={capsHead}>Nombre</TableHead>
+                            <TableHead className={`text-right ${capsHead}`}>Acciones</TableHead>
+                        </TableRow>
+                    </TableHeader>
                     <TableBody>
-                        {isLoading && <TableRow><TableCell colSpan={3} className="text-center h-16 text-gray-400">Cargando...</TableCell></TableRow>}
+                        {isLoading && <TableRow><TableCell colSpan={3} className="h-16 text-center text-muted-foreground">Cargando...</TableCell></TableRow>}
                         {brands?.map(b => (
-                            <TableRow key={b.id}>
-                                <TableCell className="font-mono text-gray-400 w-16">#{b.id}</TableCell>
-                                <TableCell className="font-medium">{b.name}</TableCell>
+                            <TableRow key={b.id} className="border-hairline hover:bg-secondary/60">
+                                <TableCell className="w-16 font-mono text-muted-foreground">#{b.id}</TableCell>
+                                <TableCell className="font-medium text-ink">{b.name}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => openEdit(b)}><Pencil className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => { setDelErr(null); setToDelete(b); }}><Trash2 className="h-4 w-4" /></Button>
+                                    <RowActions onEdit={() => openEdit(b)} onDelete={() => { setDelErr(null); setToDelete(b); }} />
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {!isLoading && brands?.length === 0 && <TableRow><TableCell colSpan={3} className="text-center h-16 text-gray-400">Sin marcas registradas.</TableCell></TableRow>}
+                        {!isLoading && brands?.length === 0 && <TableRow className="hover:bg-transparent"><TableCell colSpan={3} className="h-16 text-center text-muted-foreground">Sin marcas registradas.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </div>
@@ -71,9 +106,9 @@ function BrandsTab() {
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader><DialogTitle>{editing ? 'Editar Marca' : 'Nueva Marca'}</DialogTitle></DialogHeader>
                     <div className="grid gap-3 py-2">
-                        <Label>Nombre *</Label>
-                        <Input value={name} onChange={e => setName(e.target.value)} placeholder="ej. Nike, Jordan, Puma" maxLength={50} />
-                        {err && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{err}</p>}
+                        <Label className={capsHead}>Nombre *</Label>
+                        <Input value={name} onChange={e => setName(e.target.value)} placeholder="ej. Nike, Jordan, Puma" maxLength={50} className="h-11" />
+                        {err && <p className={errorBox}>{err}</p>}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -122,24 +157,29 @@ function CategoriesTab() {
     return (
         <div className="space-y-4">
             <div className="flex justify-end">
-                <Button size="sm" className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" />Nueva Categoría</Button>
+                <Button className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" />Nueva Categoría</Button>
             </div>
-            <div className="rounded-md border">
+            <div className="overflow-hidden rounded-xl border border-hairline">
                 <Table>
-                    <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Nombre</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+                    <TableHeader>
+                        <TableRow className="border-hairline hover:bg-transparent">
+                            <TableHead className={`w-16 ${capsHead}`}>ID</TableHead>
+                            <TableHead className={capsHead}>Nombre</TableHead>
+                            <TableHead className={`text-right ${capsHead}`}>Acciones</TableHead>
+                        </TableRow>
+                    </TableHeader>
                     <TableBody>
-                        {isLoading && <TableRow><TableCell colSpan={3} className="text-center h-16 text-gray-400">Cargando...</TableCell></TableRow>}
+                        {isLoading && <TableRow><TableCell colSpan={3} className="h-16 text-center text-muted-foreground">Cargando...</TableCell></TableRow>}
                         {cats?.map(c => (
-                            <TableRow key={c.id}>
-                                <TableCell className="font-mono text-gray-400 w-16">#{c.id}</TableCell>
-                                <TableCell className="font-medium">{c.name}</TableCell>
+                            <TableRow key={c.id} className="border-hairline hover:bg-secondary/60">
+                                <TableCell className="w-16 font-mono text-muted-foreground">#{c.id}</TableCell>
+                                <TableCell className="font-medium text-ink">{c.name}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => { setDelErr(null); setToDelete(c); }}><Trash2 className="h-4 w-4" /></Button>
+                                    <RowActions onEdit={() => openEdit(c)} onDelete={() => { setDelErr(null); setToDelete(c); }} />
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {!isLoading && cats?.length === 0 && <TableRow><TableCell colSpan={3} className="text-center h-16 text-gray-400">Sin categorías registradas.</TableCell></TableRow>}
+                        {!isLoading && cats?.length === 0 && <TableRow className="hover:bg-transparent"><TableCell colSpan={3} className="h-16 text-center text-muted-foreground">Sin categorías registradas.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </div>
@@ -147,9 +187,9 @@ function CategoriesTab() {
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader><DialogTitle>{editing ? 'Editar Categoría' : 'Nueva Categoría'}</DialogTitle></DialogHeader>
                     <div className="grid gap-3 py-2">
-                        <Label>Nombre *</Label>
-                        <Input value={name} onChange={e => setName(e.target.value)} placeholder="ej. Shorts, Camisetas, Pantalones" maxLength={50} />
-                        {err && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{err}</p>}
+                        <Label className={capsHead}>Nombre *</Label>
+                        <Input value={name} onChange={e => setName(e.target.value)} placeholder="ej. Shorts, Camisetas, Pantalones" maxLength={50} className="h-11" />
+                        {err && <p className={errorBox}>{err}</p>}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -213,74 +253,78 @@ function ProductsTab() {
 
     const isValid = name.trim() && brandId && catId && parseFloat(price) > 0;
 
-    const selectClass = "flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950";
-
     return (
         <div className="space-y-4">
             <div className="flex justify-end">
-                <Button size="sm" className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" />Nuevo Producto</Button>
+                <Button className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" />Nuevo Producto</Button>
             </div>
-            <div className="rounded-md border overflow-x-auto">
+            <div className="overflow-x-auto rounded-xl border border-hairline">
                 <Table>
                     <TableHeader>
-                        <TableRow>
-                            <TableHead>ID</TableHead><TableHead>Nombre</TableHead><TableHead>Marca</TableHead>
-                            <TableHead>Categoría</TableHead><TableHead className="text-right">Precio Base</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
+                        <TableRow className="border-hairline hover:bg-transparent">
+                            <TableHead className={`w-16 ${capsHead}`}>ID</TableHead>
+                            <TableHead className={capsHead}>Producto</TableHead>
+                            <TableHead className={capsHead}>Marca</TableHead>
+                            <TableHead className={capsHead}>Categoría</TableHead>
+                            <TableHead className={`text-right ${capsHead}`}>Precio Base</TableHead>
+                            <TableHead className={`text-right ${capsHead}`}>Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoading && <TableRow><TableCell colSpan={6} className="text-center h-16 text-gray-400">Cargando...</TableCell></TableRow>}
+                        {isLoading && <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Cargando...</TableCell></TableRow>}
                         {products?.map(p => (
-                            <TableRow key={p.id}>
-                                <TableCell className="font-mono text-gray-400 w-16">#{p.id}</TableCell>
-                                <TableCell className="font-medium">{p.name}</TableCell>
-                                <TableCell>{p.brands?.name ?? '—'}</TableCell>
-                                <TableCell>{p.categories?.name ?? '—'}</TableCell>
-                                <TableCell className="text-right font-medium">${p.base_price}</TableCell>
+                            <TableRow key={p.id} className="border-hairline hover:bg-secondary/60">
+                                <TableCell className="w-16 font-mono text-muted-foreground">#{p.id}</TableCell>
+                                <TableCell className="font-medium text-ink">{p.name}</TableCell>
+                                <TableCell className="text-muted-foreground">{p.brands?.name ?? '—'}</TableCell>
+                                <TableCell>
+                                    {p.categories?.name
+                                        ? <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{p.categories.name}</span>
+                                        : '—'}
+                                </TableCell>
+                                <TableCell className="text-right font-mono text-ink">{formatCurrency(p.base_price)}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => { setDelErr(null); setToDelete(p); }}><Trash2 className="h-4 w-4" /></Button>
+                                    <RowActions onEdit={() => openEdit(p)} onDelete={() => { setDelErr(null); setToDelete(p); }} />
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {!isLoading && products?.length === 0 && <TableRow><TableCell colSpan={6} className="text-center h-16 text-gray-400">Sin productos en el catálogo.</TableCell></TableRow>}
+                        {!isLoading && products?.length === 0 && <TableRow className="hover:bg-transparent"><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Sin productos en el catálogo.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle>{editing ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle></DialogHeader>
-                    <div className="grid gap-3 py-2">
-                        <div className="grid gap-1">
-                            <Label>Nombre *</Label>
-                            <Input value={name} onChange={e => setName(e.target.value)} placeholder="ej. Short Deportivo, Playera Básica" maxLength={100} />
+                    <div className="grid gap-4 py-2">
+                        <div className="grid gap-1.5">
+                            <Label className={capsHead}>Nombre *</Label>
+                            <Input value={name} onChange={e => setName(e.target.value)} placeholder="ej. Short Deportivo, Playera Básica" maxLength={100} className="h-11" />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="grid gap-1">
-                                <Label>Marca *</Label>
+                            <div className="grid gap-1.5">
+                                <Label className={capsHead}>Marca *</Label>
                                 <select className={selectClass} value={brandId} onChange={e => setBrandId(e.target.value)}>
                                     <option value="" disabled>Seleccionar...</option>
                                     {brands?.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                 </select>
                             </div>
-                            <div className="grid gap-1">
-                                <Label>Categoría *</Label>
+                            <div className="grid gap-1.5">
+                                <Label className={capsHead}>Categoría *</Label>
                                 <select className={selectClass} value={catId} onChange={e => setCatId(e.target.value)}>
                                     <option value="" disabled>Seleccionar...</option>
                                     {cats?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                 </select>
                             </div>
                         </div>
-                        <div className="grid gap-1">
-                            <Label>Precio Base (MXN) *</Label>
-                            <Input type="number" step="0.01" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="ej. 250.00" />
+                        <div className="grid gap-1.5">
+                            <Label className={capsHead}>Precio Base (MXN) *</Label>
+                            <Input type="number" step="0.01" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="ej. 250.00" className="h-11 font-mono" />
                         </div>
-                        <div className="grid gap-1">
-                            <Label>Descripción (opcional)</Label>
-                            <Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="ej. Algodón 100%, corte slim" />
+                        <div className="grid gap-1.5">
+                            <Label className={capsHead}>Descripción (opcional)</Label>
+                            <Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="ej. Algodón 100%, corte slim" className="h-11" />
                         </div>
-                        {err && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{err}</p>}
+                        {err && <p className={errorBox}>{err}</p>}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -315,33 +359,34 @@ export default function CatalogsPage() {
     const tab = TABS.find(t => t.id === active)!;
 
     return (
-        <div className="space-y-6">
+        <div className="mx-auto max-w-5xl space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Gestión de Catálogos</h1>
-                <p className="text-sm text-gray-500">Administra marcas, categorías y el catálogo maestro de productos.</p>
+                <h1 className="font-heading text-2xl font-bold tracking-tight text-ink sm:text-[32px]">Gestión de Catálogos</h1>
+                <p className="mt-1 text-sm text-muted-foreground">Administra marcas, categorías y el catálogo maestro de productos.</p>
             </div>
-            <Card>
-                <CardHeader className="pb-0">
-                    <div className="flex gap-1 border-b">
-                        {TABS.map(t => (
-                            <button
-                                key={t.id}
-                                onClick={() => setActive(t.id)}
-                                className={`px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${active === t.id ? 'border-b-2 border-gray-900 text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-                            >
-                                {t.label}
-                            </button>
-                        ))}
-                    </div>
-                    <CardTitle className="mt-4 text-base">{tab.label}</CardTitle>
-                    <CardDescription>{tab.desc}</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-4">
+            <div className="rounded-xl border border-hairline bg-card shadow-soft">
+                {/* Pestañas */}
+                <div className="flex gap-2 border-b border-hairline px-4">
+                    {TABS.map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => setActive(t.id)}
+                            className={`-mb-px border-b-2 px-3 py-3 text-sm font-semibold transition-colors ${active === t.id
+                                ? 'border-ink text-ink'
+                                : 'border-transparent text-muted-foreground hover:text-ink'
+                                }`}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+                <div className="p-4 sm:p-6">
+                    <p className="mb-4 text-sm text-muted-foreground">{tab.desc}</p>
                     {active === 'brands' && <BrandsTab />}
                     {active === 'categories' && <CategoriesTab />}
                     {active === 'products' && <ProductsTab />}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }
