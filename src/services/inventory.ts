@@ -20,6 +20,7 @@ export const inventoryService = {
                     id,
                     name,
                     base_price,
+                    image_url,
                     brands ( name ),
                     categories ( name )
                 )

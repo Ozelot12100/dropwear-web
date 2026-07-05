@@ -84,9 +84,11 @@ function ItemCard({
     const price = item.status === 'vendido' ? item.price_sold : item.products?.base_price;
     return (
         <div className="flex items-center gap-3 rounded-xl border border-hairline bg-card p-3 shadow-soft">
-            {/* Miniatura (placeholder hasta que se agreguen fotos) */}
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
-                <Shirt className="h-6 w-6" />
+            {/* Miniatura: foto del producto si existe, si no un placeholder */}
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary text-muted-foreground">
+                {item.products?.image_url
+                    ? <img src={item.products.image_url} alt="" className="h-full w-full object-cover" />
+                    : <Shirt className="h-6 w-6" />}
             </div>
 
             {/* Contenido clicable → transacción */}

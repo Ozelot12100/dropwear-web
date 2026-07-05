@@ -150,6 +150,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: number
+          image_url: string | null
           name: string
         }
         Insert: {
@@ -159,6 +160,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: never
+          image_url?: string | null
           name: string
         }
         Update: {
@@ -168,6 +170,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: never
+          image_url?: string | null
           name?: string
         }
         Relationships: [
