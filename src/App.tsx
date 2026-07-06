@@ -16,7 +16,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 function RouteFallback() {
     return (
-        <div className="flex items-center justify-center min-h-[50vh] text-sm text-gray-400">
+        <div className="flex items-center justify-center min-h-[50vh] text-sm text-muted-foreground">
             Cargando…
         </div>
     );

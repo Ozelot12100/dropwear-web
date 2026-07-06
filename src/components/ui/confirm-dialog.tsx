@@ -42,7 +42,11 @@ export function ConfirmDialog({
                         <DialogDescription className="whitespace-pre-line">{description}</DialogDescription>
                     )}
                 </DialogHeader>
-                {error && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>}
+                {error && (
+                    <p className="rounded-lg border border-status-returned/30 bg-status-returned/10 p-3 text-sm text-status-returned">
+                        {error}
+                    </p>
+                )}
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
                         Cancelar
