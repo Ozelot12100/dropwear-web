@@ -52,41 +52,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     useEffect(() => {
-        // 1. Obtención inicial de la sesión al montar la app
-        const fetchSession = async () => {
-            try {
-                const { data: { session }, error } = await supabase.auth.getSession();
-                if (error) throw error;
+        let active = true;
 
+        // Red de seguridad: pase lo que pase, nunca dejar la app colgada en
+        // "Verificando sesión...". Si a los 5s la sesión no se resolvió, dejamos
+        // de bloquear (onAuthStateChange corregirá el estado si llega tarde).
+        const safetyTimer = setTimeout(() => { if (active) setIsLoading(false); }, 5000);
+        const finishLoading = () => { clearTimeout(safetyTimer); if (active) setIsLoading(false); };
+
+        // 1. Obtención inicial de la sesión al montar la app. La CARGA se resuelve
+        //    en cuanto conocemos la sesión; el perfil (RBAC) se trae aparte para
+        //    que un fallo/lentitud de esa consulta no congele la pantalla.
+        const init = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!active) return;
                 setSession(session);
                 setUser(session?.user ?? null);
-
-                if (session?.user) {
-                    await fetchUserProfile(session.user.id);
-                }
+                finishLoading();
+                if (session?.user) await fetchUserProfile(session.user.id);
             } catch (error) {
                 console.error('Error fetching session:', error);
-            } finally {
-                setIsLoading(false);
+                finishLoading();
             }
         };
-
-        fetchSession();
+        init();
 
         // 2. Suscripción a cambios de estado de autenticación (Login/Logout dinámico)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+            if (!active) return;
             setSession(newSession);
             setUser(newSession?.user ?? null);
-
+            finishLoading();
             if (newSession?.user) {
                 await fetchUserProfile(newSession.user.id);
             } else {
                 setProfile(null);
             }
-            setIsLoading(false);
         });
 
         return () => {
+            active = false;
+            clearTimeout(safetyTimer);
             subscription.unsubscribe();
         };
     }, []);
