@@ -69,6 +69,7 @@ src/
 - Integra `supabase.channel()` que escucha eventos Postgres; al detectar un cambio de estado invalida la caché de React Query y re-renderiza la lista sin recargar el navegador.
 - **Filtros de Acceso Rápido:** Píldoras (Pills) con scroll horizontal para filtrar por estatus (`Todos`, `Disponible`, `Apartado`, `Vendido`, etc.).
 - **Filtros Avanzados (Sheet UI):** Menú lateral/inferior para búsquedas complejas. Genera dinámicamente las opciones disponibles de `Marca`, `Categoría` y `Talla` basado en el stock actual. UI optimizada para pantallas táctiles (uso del componente `<Sheet>` y botones-píldora para las tallas).
+- **Acciones masivas (multi-selección):** el botón **"Seleccionar"** activa casillas en tarjetas (móvil) y tabla (escritorio) + "seleccionar todo lo visible". Una barra fija muestra el conteo y dos acciones en lote: **Regresar a stock** (→ disponible) y **Vender (remate)** (marca disponibles como vendidas a un mismo precio). Cada ítem pasa por la RPC atómica `change_item_status` (con log); se reportan aplicadas/omitidas. Por diseño **no hay borrado en lote** (evita cascada sobre la bitácora inmutable).
 
 ### 4.3 Modales de Inventario
 - **`AddItemModal.tsx`:** Formulario para dar de alta prendas seleccionando producto del catálogo, talla y color. Todas las validaciones de campos están implementadas.

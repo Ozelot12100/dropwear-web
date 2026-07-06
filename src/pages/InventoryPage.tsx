@@ -11,11 +11,12 @@ import { TransactionModal } from '../components/inventory/TransactionModal';
 import { AddItemModal } from '../components/inventory/AddItemModal';
 import { EditItemModal } from '../components/inventory/EditItemModal';
 import { RoleGuard } from '../components/layout/RoleGuard';
-import { Plus, ChevronRight, Search, X, Edit2, SlidersHorizontal, Tag, Layers, Ruler, Shirt, Bookmark, Download } from 'lucide-react';
+import { Plus, ChevronRight, Search, X, Edit2, SlidersHorizontal, Tag, Layers, Ruler, Shirt, Bookmark, Download, ListChecks, Check, RotateCcw, Banknote } from 'lucide-react';
 import { downloadCsv, todayStamp } from '../lib/csv';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetClose } from '../components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Label } from '../components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 
 // ── Sistema de estatus (diseño Stitch): punto + etiqueta / pill con tinte ──────
 const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string; chip: string }> = {
@@ -99,19 +100,61 @@ function SizeChip({ size }: { size: string }) {
     );
 }
 
+// ── Casilla de selección (para modo multi-selección) ──────────────────────────
+function SelectBox({ checked }: { checked: boolean }) {
+    return (
+        <span
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
+                checked ? 'border-ink bg-ink text-white' : 'border-hairline bg-card'
+            }`}
+        >
+            {checked && <Check className="h-3.5 w-3.5" />}
+        </span>
+    );
+}
+
 // ── Tarjeta de ítem para móvil ───────────────────────────────────────────────
 function ItemCard({
     item,
     onPress,
     onEdit,
+    selectMode,
+    selected,
+    onToggleSelect,
 }: {
     item: InventoryItemWithRelations;
     onPress: () => void;
     onEdit: () => void;
+    selectMode: boolean;
+    selected: boolean;
+    onToggleSelect: () => void;
 }) {
     const price = item.status === 'vendido' ? item.price_sold : item.products?.base_price;
+    const content = (
+        <>
+            <div className="min-w-0">
+                <p className="truncate font-semibold text-ink">{item.products?.name}</p>
+                <p className="truncate text-xs text-muted-foreground">{item.products?.brands?.name}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+                <SizeChip size={item.size} />
+                <span className="text-xs capitalize text-muted-foreground">{item.color}</span>
+                <StatusLabel status={item.status} />
+            </div>
+            <ReservationLine item={item} />
+        </>
+    );
     return (
-        <div className="flex items-center gap-3 rounded-xl border border-hairline bg-card p-3 shadow-soft">
+        <div
+            onClick={selectMode ? onToggleSelect : undefined}
+            className={`flex items-center gap-3 rounded-xl border bg-card p-3 shadow-soft transition-colors ${
+                selectMode
+                    ? `cursor-pointer ${selected ? 'border-ink ring-1 ring-ink' : 'border-hairline'}`
+                    : 'border-hairline'
+            }`}
+        >
+            {selectMode && <SelectBox checked={selected} />}
+
             {/* Miniatura: foto del producto si existe, si no un placeholder */}
             <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary text-muted-foreground">
                 {item.products?.image_url
@@ -119,37 +162,34 @@ function ItemCard({
                     : <Shirt className="h-6 w-6" />}
             </div>
 
-            {/* Contenido clicable → transacción */}
-            <button onClick={onPress} className="flex min-w-0 flex-1 flex-col gap-1.5 text-left active:scale-[0.99]">
-                <div className="min-w-0">
-                    <p className="truncate font-semibold text-ink">{item.products?.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{item.products?.brands?.name}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <SizeChip size={item.size} />
-                    <span className="text-xs capitalize text-muted-foreground">{item.color}</span>
-                    <StatusLabel status={item.status} />
-                </div>
-                <ReservationLine item={item} />
-            </button>
+            {/* Contenido: en modo selección no es clicable (el contenedor toggl­ea) */}
+            {selectMode ? (
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5 text-left">{content}</div>
+            ) : (
+                <button onClick={onPress} className="flex min-w-0 flex-1 flex-col gap-1.5 text-left active:scale-[0.99]">
+                    {content}
+                </button>
+            )}
 
             {/* Precio + acciones */}
             <div className="flex shrink-0 flex-col items-end gap-2">
                 <span className={`font-mono text-sm font-semibold ${item.status === 'vendido' ? 'text-status-available' : 'text-ink'}`}>
                     {formatCurrency(price)}
                 </span>
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={onEdit}
-                        className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
-                        aria-label="Editar"
-                    >
-                        <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button onClick={onPress} className="text-muted-foreground active:scale-95" aria-label="Ver detalle">
-                        <ChevronRight className="h-5 w-5" />
-                    </button>
-                </div>
+                {!selectMode && (
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={onEdit}
+                            className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
+                            aria-label="Editar"
+                        >
+                            <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button onClick={onPress} className="text-muted-foreground active:scale-95" aria-label="Ver detalle">
+                            <ChevronRight className="h-5 w-5" />
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -206,6 +246,15 @@ export default function InventoryPage() {
         category: 'todas',
         size: 'todas'
     });
+
+    // ── Modo multi-selección / acciones masivas ──────────────────────────────
+    const [selectMode, setSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const [bulkBusy, setBulkBusy] = useState(false);
+    const [bulkResult, setBulkResult] = useState<{ action: string; ok: number; failed: number } | null>(null);
+    const [returnConfirm, setReturnConfirm] = useState(false);
+    const [remateOpen, setRemateOpen] = useState(false);
+    const [ratePrice, setRatePrice] = useState('');
 
     // Contador de filtros activos
     const activeFiltersCount = (advancedFilters.brand !== 'todas' ? 1 : 0) +
@@ -311,6 +360,76 @@ export default function InventoryPage() {
         return acc;
     }, {}) ?? {};
 
+    // ── Selección múltiple ────────────────────────────────────────────────────
+    const toggleSelect = (id: number) =>
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    const exitSelectMode = () => { setSelectMode(false); setSelectedIds(new Set()); };
+
+    const selectedItems = useMemo(
+        () => (items ?? []).filter((i) => selectedIds.has(i.id)),
+        [items, selectedIds],
+    );
+    const visibleIds = filtered.map((i) => i.id);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+    const toggleSelectAllVisible = () =>
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+            else visibleIds.forEach((id) => next.add(id));
+            return next;
+        });
+
+    // Elegibilidad por acción (evita transiciones inválidas que la RPC rechazaría).
+    const eligibleReturn = selectedItems.filter((i) => i.status !== 'disponible'); // regresar a stock
+    const eligibleSell = selectedItems.filter((i) => i.status === 'disponible'); // remate (vender)
+
+    // Ejecuta una acción de cambio de estado sobre un lote, secuencialmente (cada
+    // ítem es una RPC atómica con su propio log). Reporta aplicadas / omitidas.
+    const runBulk = async (
+        action: string,
+        targets: InventoryItemWithRelations[],
+        newStatus: ItemStatus,
+        opts?: { priceSold?: number; notes?: string },
+    ) => {
+        setBulkBusy(true);
+        let ok = 0;
+        let failed = 0;
+        for (const it of targets) {
+            try {
+                await inventoryService.updateItemStatus({
+                    itemId: it.id,
+                    newStatus,
+                    priceSold: opts?.priceSold ?? null,
+                    notes: opts?.notes,
+                });
+                ok += 1;
+            } catch {
+                failed += 1;
+            }
+        }
+        setBulkBusy(false);
+        setBulkResult({ action, ok, failed });
+        queryClient.invalidateQueries({ queryKey: ['inventory_items'] });
+        exitSelectMode();
+    };
+
+    const handleBulkReturn = async () => {
+        await runBulk('Regreso a stock', eligibleReturn, 'disponible', { notes: 'Regreso a stock (lote)' });
+        setReturnConfirm(false);
+    };
+    const handleBulkSell = async () => {
+        const price = parseFloat(ratePrice.replace(/,/g, '.'));
+        if (!(price > 0)) return;
+        await runBulk('Remate', eligibleSell, 'vendido', { priceSold: price, notes: 'Venta en lote (remate)' });
+        setRemateOpen(false);
+        setRatePrice('');
+    };
+
     // Exporta el inventario filtrado a CSV (respeta filtros de estado, texto y avanzados).
     const handleExport = () => {
         const headers = [
@@ -342,7 +461,7 @@ export default function InventoryPage() {
     );
 
     return (
-        <div className="mx-auto max-w-6xl space-y-5">
+        <div className={`mx-auto max-w-6xl space-y-5 ${selectMode ? 'pb-28 sm:pb-24' : ''}`}>
             {/* ── Header ─────────────────────────────────────────────── */}
             <div className="flex items-center justify-between gap-4">
                 <div>
@@ -358,24 +477,51 @@ export default function InventoryPage() {
                     </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                    {!selectMode && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={handleExport}
+                                disabled={filtered.length === 0}
+                                className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-hairline bg-card px-3 text-sm font-medium text-ink transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:h-10"
+                            >
+                                <Download className="h-4 w-4" />
+                                <span className="hidden sm:inline">Exportar</span>
+                            </button>
+                            <RoleGuard allowed={['socio', 'superadmin']}>
+                                <Button onClick={() => setIsAddModalOpen(true)} className="gap-1.5">
+                                    <Plus className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Agregar Prenda</span>
+                                    <span className="sm:hidden">Agregar</span>
+                                </Button>
+                            </RoleGuard>
+                        </>
+                    )}
+                    {/* Modo selección: aplicar acciones a varias prendas a la vez */}
                     <button
                         type="button"
-                        onClick={handleExport}
-                        disabled={filtered.length === 0}
+                        onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+                        disabled={!selectMode && (items?.length ?? 0) === 0}
                         className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-hairline bg-card px-3 text-sm font-medium text-ink transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:h-10"
                     >
-                        <Download className="h-4 w-4" />
-                        <span className="hidden sm:inline">Exportar</span>
+                        {selectMode ? <X className="h-4 w-4" /> : <ListChecks className="h-4 w-4" />}
+                        <span className="hidden sm:inline">{selectMode ? 'Cancelar' : 'Seleccionar'}</span>
                     </button>
-                    <RoleGuard allowed={['socio', 'superadmin']}>
-                        <Button onClick={() => setIsAddModalOpen(true)} className="gap-1.5">
-                            <Plus className="h-4 w-4" />
-                            <span className="hidden sm:inline">Agregar Prenda</span>
-                            <span className="sm:hidden">Agregar</span>
-                        </Button>
-                    </RoleGuard>
                 </div>
             </div>
+
+            {/* Resultado de la última acción masiva (banner descartable) */}
+            {bulkResult && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-hairline bg-secondary px-4 py-2.5 text-sm">
+                    <span className="text-ink">
+                        <span className="font-semibold">{bulkResult.action}:</span> {bulkResult.ok} aplicada{bulkResult.ok !== 1 ? 's' : ''}
+                        {bulkResult.failed > 0 ? ` · ${bulkResult.failed} omitida${bulkResult.failed !== 1 ? 's' : ''}` : ''}.
+                    </span>
+                    <button onClick={() => setBulkResult(null)} aria-label="Cerrar" className="text-muted-foreground transition-colors hover:text-ink">
+                        <X className="h-4 w-4" />
+                    </button>
+                </div>
+            )}
 
             {/* ── Búsqueda y Filtros ─────────────────────────────────────────── */}
             <div className="flex gap-2">
@@ -558,6 +704,9 @@ export default function InventoryPage() {
                             item={item}
                             onPress={() => openItem(item)}
                             onEdit={() => openEditItem(item)}
+                            selectMode={selectMode}
+                            selected={selectedIds.has(item.id)}
+                            onToggleSelect={() => toggleSelect(item.id)}
                         />
                     ))}
                     {filtered.length === 0 && (
@@ -573,6 +722,13 @@ export default function InventoryPage() {
                 <Table>
                     <TableHeader>
                         <TableRow className="border-hairline hover:bg-transparent">
+                            {selectMode && (
+                                <TableHead className="w-[44px]">
+                                    <button onClick={toggleSelectAllVisible} aria-label="Seleccionar todo lo visible" className="align-middle">
+                                        <SelectBox checked={allVisibleSelected} />
+                                    </button>
+                                </TableHead>
+                            )}
                             <TableHead className="w-[80px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">ID</TableHead>
                             <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Producto</TableHead>
                             <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Marca</TableHead>
@@ -591,9 +747,16 @@ export default function InventoryPage() {
                         {!isLoading && filtered.map((item: InventoryItemWithRelations) => (
                             <TableRow
                                 key={item.id}
-                                className="cursor-pointer border-hairline hover:bg-secondary/60"
-                                onClick={() => openItem(item)}
+                                className={`border-hairline hover:bg-secondary/60 ${
+                                    selectMode && selectedIds.has(item.id) ? 'bg-secondary/60' : ''
+                                } cursor-pointer`}
+                                onClick={() => (selectMode ? toggleSelect(item.id) : openItem(item))}
                             >
+                                {selectMode && (
+                                    <TableCell className="w-[44px]">
+                                        <SelectBox checked={selectedIds.has(item.id)} />
+                                    </TableCell>
+                                )}
                                 <TableCell className="font-mono text-muted-foreground">#{item.id}</TableCell>
                                 <TableCell>
                                     <div className="font-semibold text-ink">{item.products?.name}</div>
@@ -615,22 +778,24 @@ export default function InventoryPage() {
                                     }
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            openEditItem(item);
-                                        }}
-                                        className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
-                                        aria-label="Editar"
-                                    >
-                                        <Edit2 className="h-4 w-4" />
-                                    </button>
+                                    {!selectMode && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openEditItem(item);
+                                            }}
+                                            className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
+                                            aria-label="Editar"
+                                        >
+                                            <Edit2 className="h-4 w-4" />
+                                        </button>
+                                    )}
                                 </TableCell>
                             </TableRow>
                         ))}
                         {!isLoading && filtered.length === 0 && (
                             <TableRow className="hover:bg-transparent">
-                                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                                <TableCell colSpan={selectMode ? 9 : 8} className="h-24 text-center text-muted-foreground">
                                     {searchQuery ? `Sin resultados para "${searchRaw}"` : 'No hay artículos con ese estatus.'}
                                 </TableCell>
                             </TableRow>
@@ -643,6 +808,96 @@ export default function InventoryPage() {
                     </div>
                 )}
             </div>
+
+            {/* ── Barra de acciones masivas (fija, aparece en modo selección) ── */}
+            {selectMode && (
+                <div className="fixed inset-x-0 bottom-16 z-40 px-3 sm:bottom-6">
+                    <div className="mx-auto flex max-w-3xl items-center gap-2 rounded-xl border border-hairline bg-card p-2.5 shadow-lg">
+                        <button
+                            onClick={toggleSelectAllVisible}
+                            className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-ink"
+                        >
+                            {allVisibleSelected ? 'Ninguna' : 'Todas'}
+                        </button>
+                        <span className="shrink-0 font-mono text-sm font-semibold text-ink">{selectedIds.size}</span>
+                        <span className="hidden text-xs text-muted-foreground sm:inline">seleccionada{selectedIds.size !== 1 ? 's' : ''}</span>
+                        <div className="flex-1" />
+                        <Button
+                            variant="outline"
+                            className="gap-1.5"
+                            disabled={eligibleReturn.length === 0 || bulkBusy}
+                            onClick={() => setReturnConfirm(true)}
+                        >
+                            <RotateCcw className="h-4 w-4" />
+                            <span className="hidden sm:inline">Regresar a stock</span>
+                            <span className="font-mono text-xs">{eligibleReturn.length > 0 ? eligibleReturn.length : ''}</span>
+                        </Button>
+                        <Button
+                            className="gap-1.5"
+                            disabled={eligibleSell.length === 0 || bulkBusy}
+                            onClick={() => setRemateOpen(true)}
+                        >
+                            <Banknote className="h-4 w-4" />
+                            <span className="hidden sm:inline">Vender</span>
+                            <span className="font-mono text-xs">{eligibleSell.length > 0 ? eligibleSell.length : ''}</span>
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Remate: vender varias prendas disponibles al mismo precio */}
+            <Dialog open={remateOpen} onOpenChange={(o) => { if (!bulkBusy) setRemateOpen(o); }}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader><DialogTitle>Vender en lote (remate)</DialogTitle></DialogHeader>
+                    <div className="grid gap-3 py-2">
+                        <p className="text-sm text-muted-foreground">
+                            Se marcarán <span className="font-semibold text-ink">{eligibleSell.length}</span> prenda
+                            {eligibleSell.length !== 1 ? 's' : ''} disponible{eligibleSell.length !== 1 ? 's' : ''} como{' '}
+                            <span className="font-semibold text-status-sold">vendidas</span>, al mismo precio cada una.
+                        </p>
+                        <div className="grid gap-1.5">
+                            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Precio por prenda (MXN) *</Label>
+                            <Input
+                                type="number" inputMode="decimal" step="0.01" min="0"
+                                value={ratePrice} onChange={(e) => setRatePrice(e.target.value)}
+                                placeholder="ej. 150.00" className="h-11 font-mono" autoFocus
+                            />
+                        </div>
+                        {parseFloat(ratePrice.replace(/,/g, '.')) > 0 && eligibleSell.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                Total del remate:{' '}
+                                <span className="font-mono font-semibold text-ink">
+                                    {formatCurrency(parseFloat(ratePrice.replace(/,/g, '.')) * eligibleSell.length)}
+                                </span>
+                            </p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRemateOpen(false)} disabled={bulkBusy}>Cancelar</Button>
+                        <Button onClick={handleBulkSell} disabled={!(parseFloat(ratePrice.replace(/,/g, '.')) > 0) || bulkBusy}>
+                            {bulkBusy ? 'Procesando…' : `Vender ${eligibleSell.length}`}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Regresar a stock: confirmación */}
+            <Dialog open={returnConfirm} onOpenChange={(o) => { if (!bulkBusy) setReturnConfirm(o); }}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader><DialogTitle>Regresar a stock</DialogTitle></DialogHeader>
+                    <p className="py-1 text-sm text-muted-foreground">
+                        ¿Regresar <span className="font-semibold text-ink">{eligibleReturn.length}</span> prenda
+                        {eligibleReturn.length !== 1 ? 's' : ''} a estado <span className="font-semibold text-status-available">disponible</span>?
+                        Las que estén apartadas perderán los datos del cliente.
+                    </p>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setReturnConfirm(false)} disabled={bulkBusy}>Cancelar</Button>
+                        <Button onClick={handleBulkReturn} disabled={bulkBusy || eligibleReturn.length === 0}>
+                            {bulkBusy ? 'Procesando…' : 'Regresar a stock'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* ── Modales ───────────────────────────────────────────── */}
             <TransactionModal

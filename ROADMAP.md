@@ -43,6 +43,7 @@ Este documento detalla las funcionalidades pendientes para mejorar la experienci
 - **Nota contable:** no se incluye "compra de mercancía" como gasto: su costo ya se captura en `products.cost` (COGS) y contarlo aquí lo restaría dos veces.
 - **Beneficio:** cruzar *Ingresos − Costo de prendas − Gastos* da la **Utilidad Neta Real** del negocio.
 
-### 2.5 Acciones Masivas (Batch Operations) 📦
-- **Concepto:** `Checkboxes` en la tabla de PC para seleccionar de 2 a 50 artículos a la vez.
-- **Beneficio:** Permite aplicar remates, devolver apartados a stock o marcar lotes enteros como vendidos en 1 solo clic, ahorrando horas de administración manual.
+### 2.5 Acciones Masivas (Batch Operations) 📦 — ✅ Implementado
+- **Estado:** botón **"Seleccionar"** en Inventario activa el modo multi-selección (casillas en tarjetas móvil y tabla de escritorio, con "seleccionar todo lo visible"). Una barra fija muestra el conteo y dos acciones en lote: **Regresar a stock** (→ disponible; limpia datos de apartado) y **Vender (remate)** (marca las disponibles como vendidas a un mismo precio). Cada ítem se procesa con la RPC atómica `change_item_status` (con su log), y se reporta cuántas se aplicaron / omitieron.
+- **Decisión de diseño:** las acciones masivas son **solo cambios de estado**, no borrado. Borrar ítems haría cascada sobre la bitácora inmutable (`inventory_logs`) y perdería auditoría — contra la filosofía del sistema. Validado E2E en producción (disponible → apartado → regreso a stock → remate).
+- **Beneficio:** aplicar remates o devolver apartados a stock en lote, ahorrando horas de administración manual.
