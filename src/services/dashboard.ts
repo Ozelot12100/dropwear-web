@@ -21,8 +21,19 @@ export const dashboardService = {
             .from('inventory_items')
             .select('*', { count: 'exact', head: true })
             .eq('status', 'apartado');
-            
+
         if (err2) throw err2;
+
+        // Apartados vencidos: reserved_until anterior a hoy (fecha local)
+        const d = new Date();
+        const todayDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const { count: overdueReservedCount, error: err2b } = await supabase
+            .from('inventory_items')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'apartado')
+            .lt('reserved_until', todayDateStr);
+
+        if (err2b) throw err2b;
 
         // Vendidos hoy: se derivan de la BITÁCORA (eventos 'venta' de hoy), no de
         // `updated_at` del artículo —que se bumpea al editar detalles e inflaba las
@@ -47,6 +58,7 @@ export const dashboardService = {
         return {
             availableCount: availableCount || 0,
             reservedCount: reservedCount || 0,
+            overdueReservedCount: overdueReservedCount || 0,
             soldCount,
             totalRevenue,
         };

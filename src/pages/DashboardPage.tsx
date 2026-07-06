@@ -69,6 +69,7 @@ export default function DashboardPage() {
     };
 
     // Configuración de las 4 tarjetas KPI (barra lateral de estatus + número en mono).
+    const overdue = stats?.overdueReservedCount ?? 0;
     const metrics: {
         key: string;
         label: string;
@@ -78,6 +79,7 @@ export default function DashboardPage() {
         bar: string;
         valueClass: string;
         big?: boolean;
+        subNote?: string | null;
     }[] = [
         {
             key: 'available',
@@ -98,6 +100,7 @@ export default function DashboardPage() {
             bar: 'bg-status-reserved',
             valueClass: 'text-status-reserved',
             big: true,
+            subNote: overdue > 0 ? `${overdue} vencido${overdue > 1 ? 's' : ''}` : null,
         },
         {
             key: 'sold',
@@ -141,7 +144,7 @@ export default function DashboardPage() {
 
             {/* Rejilla de KPIs */}
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                {metrics.map(({ key, label, value, caption, icon: Icon, bar, valueClass, big }) => (
+                {metrics.map(({ key, label, value, caption, icon: Icon, bar, valueClass, big, subNote }) => (
                     <div
                         key={key}
                         className="relative flex h-32 flex-col justify-between overflow-hidden rounded-xl border border-hairline bg-card p-4 shadow-soft transition-transform active:scale-[0.98] md:h-40 md:p-6"
@@ -164,6 +167,9 @@ export default function DashboardPage() {
                                 </div>
                             )}
                             <p className="mt-2 text-xs text-muted-foreground">{caption}</p>
+                            {subNote && (
+                                <p className="mt-0.5 text-[11px] font-semibold text-status-returned">{subNote}</p>
+                            )}
                         </div>
                     </div>
                 ))}

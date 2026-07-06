@@ -46,6 +46,12 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
     const [notes, setNotes] = useState('');
     const [error, setError] = useState<string | null>(null);
 
+    // Datos del cliente para apartados
+    const [reservedFor, setReservedFor] = useState('');
+    const [reservedContact, setReservedContact] = useState('');
+    const [reservedUntil, setReservedUntil] = useState('');
+    const [reservedDeposit, setReservedDeposit] = useState('');
+
     // Inicializar el estado de venta cuando se abre un ítem
     const handleOpenChange = (open: boolean) => {
         if (!open) {
@@ -53,7 +59,21 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
             setPriceSold('');
             setNotes('');
             setError(null);
+            setReservedFor('');
+            setReservedContact('');
+            setReservedUntil('');
+            setReservedDeposit('');
             onClose();
+        }
+    };
+
+    // Al elegir "Apartado", sugiere una fecha de vencimiento por defecto (+7 días).
+    const handleSelectStatus = (value: ItemStatus) => {
+        setSelectedStatus(value);
+        if (value === 'apartado' && !reservedUntil) {
+            const d = new Date();
+            d.setDate(d.getDate() + 7);
+            setReservedUntil(d.toISOString().slice(0, 10));
         }
     };
 
@@ -81,6 +101,23 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                 throw new Error(`Las notas no pueden superar los ${MAX_NOTES_LENGTH} caracteres.`);
             }
 
+            // Validaciones de apartado
+            let parsedDeposit: number | null = null;
+            if (selectedStatus === 'apartado') {
+                if (reservedFor.trim().length < 3) {
+                    throw new Error('Captura el nombre del cliente (mín. 3 letras) para apartar.');
+                }
+                if (!reservedUntil) {
+                    throw new Error('Selecciona la fecha de vencimiento del apartado.');
+                }
+                if (reservedDeposit.trim()) {
+                    parsedDeposit = parseFloat(reservedDeposit.replace(/,/g, '.'));
+                    if (isNaN(parsedDeposit) || parsedDeposit < 0) {
+                        throw new Error('El anticipo debe ser un monto válido (0 o mayor).');
+                    }
+                }
+            }
+
             if (!item) throw new Error('No hay prenda seleccionada.');
 
             // 3. Bomba de tiempo (Timeout) de 15 segundos
@@ -93,6 +130,10 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                 newStatus: selectedStatus as ItemStatus,
                 priceSold: parsedPrice,
                 notes: notes.trim() || undefined,
+                reservedFor: reservedFor,
+                reservedContact: reservedContact,
+                reservedUntil: reservedUntil,
+                reservedDeposit: parsedDeposit,
             });
 
             await Promise.race([updatePromise, timeoutPromise]);
@@ -159,7 +200,7 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                                             key={value}
                                             type="button"
                                             disabled={isCurrent}
-                                            onClick={() => setSelectedStatus(value)}
+                                            onClick={() => handleSelectStatus(value)}
                                             className={`flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all ${isSelected
                                                 ? 'border-ink bg-secondary ring-1 ring-ink'
                                                 : 'border-hairline bg-card hover:bg-secondary'
@@ -172,6 +213,69 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                                 })}
                             </div>
                         </div>
+
+                        {/* Datos del cliente si se marca como Apartado */}
+                        {selectedStatus === 'apartado' && (
+                            <div className="grid gap-3 rounded-xl border border-hairline bg-secondary p-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Datos del apartado
+                                </p>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="reservedFor" className="text-sm font-medium text-ink">Cliente *</Label>
+                                    <Input
+                                        id="reservedFor"
+                                        placeholder="Nombre de quien aparta"
+                                        value={reservedFor}
+                                        onChange={(e) => setReservedFor(e.target.value)}
+                                        className="bg-card"
+                                        maxLength={80}
+                                        autoFocus
+                                        required
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="reservedContact" className="text-sm font-medium text-ink">Teléfono</Label>
+                                        <Input
+                                            id="reservedContact"
+                                            type="tel"
+                                            inputMode="tel"
+                                            placeholder="Opcional"
+                                            value={reservedContact}
+                                            onChange={(e) => setReservedContact(e.target.value)}
+                                            className="bg-card font-mono"
+                                            maxLength={20}
+                                        />
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        <Label htmlFor="reservedUntil" className="text-sm font-medium text-ink">Vence *</Label>
+                                        <Input
+                                            id="reservedUntil"
+                                            type="date"
+                                            value={reservedUntil}
+                                            onChange={(e) => setReservedUntil(e.target.value)}
+                                            className="bg-card"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="reservedDeposit" className="text-sm font-medium text-ink">
+                                        Anticipo <span className="font-normal text-muted-foreground">(opcional)</span>
+                                    </Label>
+                                    <Input
+                                        id="reservedDeposit"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="Ej. 200.00"
+                                        value={reservedDeposit}
+                                        onChange={(e) => setReservedDeposit(e.target.value)}
+                                        className="bg-card font-mono"
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         {/* Condición crítica: exigir cobro si se marca como Vendido */}
                         {selectedStatus === 'vendido' && (

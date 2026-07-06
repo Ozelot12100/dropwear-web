@@ -15,6 +15,10 @@ export const inventoryService = {
                 color,
                 status,
                 price_sold,
+                reserved_for,
+                reserved_contact,
+                reserved_until,
+                reserved_deposit,
                 created_at,
                 products (
                     id,
@@ -43,17 +47,31 @@ export const inventoryService = {
         newStatus,
         priceSold,
         notes,
+        reservedFor,
+        reservedContact,
+        reservedUntil,
+        reservedDeposit,
     }: {
         itemId: number;
         newStatus: ItemStatus;
         priceSold: number | null;
         notes?: string;
+        // Datos de apartado (solo se envían cuando newStatus === 'apartado')
+        reservedFor?: string;
+        reservedContact?: string;
+        reservedUntil?: string; // 'YYYY-MM-DD'
+        reservedDeposit?: number | null;
     }) {
+        const isReserve = newStatus === 'apartado';
         const { error } = await supabase.rpc('change_item_status', {
             p_item_id: itemId,
             p_new_status: newStatus,
             p_price_sold: newStatus === 'vendido' ? (priceSold ?? undefined) : undefined,
             p_notes: notes?.trim() || undefined,
+            p_reserved_for: isReserve ? reservedFor?.trim() || undefined : undefined,
+            p_reserved_contact: isReserve ? reservedContact?.trim() || undefined : undefined,
+            p_reserved_until: isReserve ? reservedUntil || undefined : undefined,
+            p_reserved_deposit: isReserve ? (reservedDeposit ?? undefined) : undefined,
         });
 
         if (error) throw error;
