@@ -3,6 +3,8 @@ import type { LucideIcon } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { inventoryService } from '../services/inventory';
+import { useAuth } from '../hooks';
+import { STATUS_CHANGE_ROLES, ITEM_EDIT_ROLES, can } from '../lib/permissions';
 import type { InventoryItemWithRelations, ItemStatus, PaymentMethod } from '../types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -115,37 +117,46 @@ function SelectBox({ checked }: { checked: boolean }) {
 }
 
 // ── Acciones rápidas de swipe (contextuales por estado) ───────────────────────
-type CardAction = { key: string; label: string; icon: LucideIcon; cls: string; run: () => void };
+// `kind` decide qué capacidad de rol se requiere: 'status' (cambiar estado) o
+// 'edit' (corregir detalles). Se filtran según el rol del usuario.
+type CardAction = { key: string; label: string; icon: LucideIcon; cls: string; kind: 'status' | 'edit'; run: () => void };
 
 function quickActionsFor(
     status: string,
     onQuickStatus: (s: ItemStatus) => void,
     onEdit: () => void,
+    caps: { status: boolean; edit: boolean },
 ): CardAction[] {
+    let all: CardAction[];
     switch (status) {
         case 'disponible':
-            return [
-                { key: 'apartar', label: 'Apartar', icon: Bookmark, cls: 'bg-status-reserved text-white', run: () => onQuickStatus('apartado') },
-                { key: 'vender', label: 'Vender', icon: Banknote, cls: 'bg-status-available text-white', run: () => onQuickStatus('vendido') },
+            all = [
+                { key: 'apartar', label: 'Apartar', icon: Bookmark, cls: 'bg-status-reserved text-white', kind: 'status', run: () => onQuickStatus('apartado') },
+                { key: 'vender', label: 'Vender', icon: Banknote, cls: 'bg-status-available text-white', kind: 'status', run: () => onQuickStatus('vendido') },
             ];
+            break;
         case 'apartado':
-            return [
-                { key: 'liberar', label: 'Liberar', icon: RotateCcw, cls: 'bg-ink text-white', run: () => onQuickStatus('disponible') },
-                { key: 'vender', label: 'Vender', icon: Banknote, cls: 'bg-status-available text-white', run: () => onQuickStatus('vendido') },
+            all = [
+                { key: 'liberar', label: 'Liberar', icon: RotateCcw, cls: 'bg-ink text-white', kind: 'status', run: () => onQuickStatus('disponible') },
+                { key: 'vender', label: 'Vender', icon: Banknote, cls: 'bg-status-available text-white', kind: 'status', run: () => onQuickStatus('vendido') },
             ];
+            break;
         case 'vendido':
-            return [
-                { key: 'editar', label: 'Editar', icon: Edit2, cls: 'bg-secondary text-ink', run: onEdit },
-                { key: 'devolver', label: 'Devolver', icon: RotateCcw, cls: 'bg-status-returned text-white', run: () => onQuickStatus('devuelto') },
+            all = [
+                { key: 'editar', label: 'Editar', icon: Edit2, cls: 'bg-secondary text-ink', kind: 'edit', run: onEdit },
+                { key: 'devolver', label: 'Devolver', icon: RotateCcw, cls: 'bg-status-returned text-white', kind: 'status', run: () => onQuickStatus('devuelto') },
             ];
+            break;
         case 'devuelto':
-            return [
-                { key: 'editar', label: 'Editar', icon: Edit2, cls: 'bg-secondary text-ink', run: onEdit },
-                { key: 'stock', label: 'A stock', icon: Check, cls: 'bg-status-available text-white', run: () => onQuickStatus('disponible') },
+            all = [
+                { key: 'editar', label: 'Editar', icon: Edit2, cls: 'bg-secondary text-ink', kind: 'edit', run: onEdit },
+                { key: 'stock', label: 'A stock', icon: Check, cls: 'bg-status-available text-white', kind: 'status', run: () => onQuickStatus('disponible') },
             ];
+            break;
         default:
-            return [];
+            all = [];
     }
+    return all.filter((a) => (a.kind === 'edit' ? caps.edit : caps.status));
 }
 
 const ACTION_W = 76; // ancho por botón revelado (px)
@@ -156,6 +167,8 @@ function ItemCard({
     onPress,
     onEdit,
     onQuickStatus,
+    canChangeStatus,
+    canEditDetails,
     selectMode,
     selected,
     onToggleSelect,
@@ -166,6 +179,8 @@ function ItemCard({
     onPress: () => void;
     onEdit: () => void;
     onQuickStatus: (s: ItemStatus) => void;
+    canChangeStatus: boolean;
+    canEditDetails: boolean;
     selectMode: boolean;
     selected: boolean;
     onToggleSelect: () => void;
@@ -174,7 +189,9 @@ function ItemCard({
 }) {
     const price = item.status === 'vendido' ? item.price_sold : item.products?.base_price;
 
-    const actions = selectMode ? [] : quickActionsFor(item.status, onQuickStatus, onEdit);
+    const actions = selectMode
+        ? []
+        : quickActionsFor(item.status, onQuickStatus, onEdit, { status: canChangeStatus, edit: canEditDetails });
     const revealW = actions.length * ACTION_W;
 
     // ── Mecánica del swipe (pointer events + touch-action: pan-y) ──────────────
@@ -324,14 +341,16 @@ function ItemCard({
                     </span>
                     {!selectMode && (
                         <div className="flex items-center gap-1">
-                            <button
-                                type="button"
-                                onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onEdit(); }}
-                                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
-                                aria-label="Editar"
-                            >
-                                <Edit2 className="h-4 w-4" />
-                            </button>
+                            {canEditDetails && (
+                                <button
+                                    type="button"
+                                    onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onEdit(); }}
+                                    className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
+                                    aria-label="Editar"
+                                >
+                                    <Edit2 className="h-4 w-4" />
+                                </button>
+                            )}
                             <button type="button" onClick={handleContentClick} className="text-muted-foreground active:scale-95" aria-label="Ver detalle">
                                 <ChevronRight className="h-5 w-5" />
                             </button>
@@ -382,6 +401,10 @@ function TableSkeletons() {
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function InventoryPage() {
     const queryClient = useQueryClient();
+    const { profile } = useAuth();
+    // Capacidades de rol (coinciden con el RLS; hoy ambos son superadmin ⇒ todo activo).
+    const canChangeStatus = can(profile?.role, STATUS_CHANGE_ROLES);
+    const canEditDetails = can(profile?.role, ITEM_EDIT_ROLES);
     const [selectedItem, setSelectedItem] = useState<InventoryItemWithRelations | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [txInitialStatus, setTxInitialStatus] = useState<ItemStatus | undefined>(undefined);
@@ -659,16 +682,19 @@ export default function InventoryPage() {
                             </RoleGuard>
                         </>
                     )}
-                    {/* Modo selección: aplicar acciones a varias prendas a la vez */}
-                    <button
-                        type="button"
-                        onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-                        disabled={!selectMode && (items?.length ?? 0) === 0}
-                        className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-hairline bg-card px-3 text-sm font-medium text-ink transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:h-10"
-                    >
-                        {selectMode ? <X className="h-4 w-4" /> : <ListChecks className="h-4 w-4" />}
-                        <span className="hidden sm:inline">{selectMode ? 'Cancelar' : 'Seleccionar'}</span>
-                    </button>
+                    {/* Modo selección: aplicar acciones (venta/regreso) a varias prendas a la
+                        vez. Solo para roles que pueden cambiar estado (no 'contador'). */}
+                    {canChangeStatus && (
+                        <button
+                            type="button"
+                            onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+                            disabled={!selectMode && (items?.length ?? 0) === 0}
+                            className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-hairline bg-card px-3 text-sm font-medium text-ink transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:h-10"
+                        >
+                            {selectMode ? <X className="h-4 w-4" /> : <ListChecks className="h-4 w-4" />}
+                            <span className="hidden sm:inline">{selectMode ? 'Cancelar' : 'Seleccionar'}</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -867,6 +893,8 @@ export default function InventoryPage() {
                             onPress={() => openItem(item)}
                             onEdit={() => openEditItem(item)}
                             onQuickStatus={(status) => openQuickStatus(item, status)}
+                            canChangeStatus={canChangeStatus}
+                            canEditDetails={canEditDetails}
                             selectMode={selectMode}
                             selected={selectedIds.has(item.id)}
                             onToggleSelect={() => toggleSelect(item.id)}
@@ -943,7 +971,7 @@ export default function InventoryPage() {
                                     }
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    {!selectMode && (
+                                    {!selectMode && canEditDetails && (
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -1088,6 +1116,7 @@ export default function InventoryPage() {
                 item={selectedItem}
                 isOpen={isModalOpen}
                 initialStatus={txInitialStatus}
+                canWrite={canChangeStatus}
                 onClose={() => { setIsModalOpen(false); setTxInitialStatus(undefined); }}
             />
             <AddItemModal

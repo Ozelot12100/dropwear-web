@@ -49,9 +49,11 @@ interface TransactionModalProps {
     onClose: () => void;
     // Estatus preseleccionado al abrir (usado por los atajos de swipe en el inventario).
     initialStatus?: ItemStatus;
+    // Si el rol no puede cambiar estado (p. ej. 'contador'), el modal es de solo lectura.
+    canWrite?: boolean;
 }
 
-export function TransactionModal({ item, isOpen, onClose, initialStatus }: TransactionModalProps) {
+export function TransactionModal({ item, isOpen, onClose, initialStatus, canWrite = true }: TransactionModalProps) {
     const { user } = useAuth();
     const queryClient = useQueryClient();
 
@@ -207,6 +209,12 @@ export function TransactionModal({ item, isOpen, onClose, initialStatus }: Trans
                     </DialogHeader>
 
                     <div className="grid gap-5 py-4">
+                        {!canWrite && (
+                            <div className="rounded-lg border border-hairline bg-secondary p-3 text-sm text-muted-foreground">
+                                Tu rol puede <span className="font-medium text-ink">consultar</span> esta prenda, pero no modificar su estatus.
+                            </div>
+                        )}
+
                         {/* Estatus actual */}
                         <div className="flex items-center justify-between">
                             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -234,7 +242,7 @@ export function TransactionModal({ item, isOpen, onClose, initialStatus }: Trans
                                         <button
                                             key={value}
                                             type="button"
-                                            disabled={isCurrent}
+                                            disabled={isCurrent || !canWrite}
                                             onClick={() => handleSelectStatus(value)}
                                             className={`flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all ${isSelected
                                                 ? 'border-ink bg-secondary ring-1 ring-ink'
@@ -390,7 +398,7 @@ export function TransactionModal({ item, isOpen, onClose, initialStatus }: Trans
                         >
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={mutation.isPending || !selectedStatus}>
+                        <Button type="submit" disabled={mutation.isPending || !selectedStatus || !canWrite}>
                             {mutation.isPending ? 'Procesando...' : 'Confirmar Cambios'}
                         </Button>
                     </DialogFooter>
