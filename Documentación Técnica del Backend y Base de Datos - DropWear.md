@@ -118,7 +118,7 @@ INSERT INTO brands (name) VALUES ('Jordan'), ('Adidas'), ('Nike'), ('Puma');
 * **`inventory_items`** ganó columnas nuevas:
   * `image_url` **no** (esa vive en `products`).
   * `reserved_for TEXT`, `reserved_contact TEXT`, `reserved_until DATE`, `reserved_deposit NUMERIC(10,2)` — datos del **cliente que apartó** la prenda (solo aplican mientras `status='apartado'`; se limpian solos al salir de ese estado). Ver la feature de Apartados abajo.
-* **`products`** ganó `image_url TEXT` (foto del producto, ver Storage abajo).
+* **`products`** ganó `image_url TEXT` (foto del producto, ver Storage abajo) y `cost NUMERIC(10,2)` (costo estándar, no negativo, para calcular utilidad/margen; dato financiero restringido solo en la UI mientras M2 siga pendiente).
 * **CHECK constraints de integridad (Fase 2):** `price_sold` obligatorio cuando `status='vendido'`; `price_sold`, `base_price` y `reserved_deposit` no negativos.
 * **RPCs atómicas (Fase 2)** — reemplazan el CRUD multi-paso del cliente por transacciones únicas con `FOR UPDATE` (eliminan la doble venta y el estado inconsistente). `SECURITY INVOKER` (respetan RLS). El actor se sella en el servidor vía triggers (`stamp_log_actor`, `stamp_item_actor`), nunca desde el cliente:
   * `change_item_status(p_item_id, p_new_status, p_price_sold, p_notes, p_reserved_for, p_reserved_contact, p_reserved_until, p_reserved_deposit)` — cambia estado + inserta el log en una transacción. Exige precio si es venta y nombre de cliente si es apartado.

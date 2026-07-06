@@ -94,6 +94,7 @@ export const catalogService = {
                 name,
                 description,
                 base_price,
+                cost,
                 brand_id,
                 category_id,
                 image_url,
@@ -124,6 +125,7 @@ export const catalogService = {
         name: string;
         description?: string | null;
         base_price: number;
+        cost?: number | null;
         brand_id: number;
         category_id: number;
         image_url?: string | null;
@@ -134,6 +136,7 @@ export const catalogService = {
                 name: payload.name.trim(),
                 description: payload.description?.trim() || null,
                 base_price: payload.base_price,
+                cost: payload.cost ?? null,
                 brand_id: payload.brand_id,
                 category_id: payload.category_id,
                 image_url: payload.image_url ?? null,
@@ -147,6 +150,7 @@ export const catalogService = {
             name?: string;
             description?: string | null;
             base_price?: number;
+            cost?: number | null;
             brand_id?: number;
             category_id?: number;
             image_url?: string | null;

@@ -20,6 +20,12 @@ const capsHead = 'text-[11px] font-semibold uppercase tracking-wider text-muted-
 const formatCurrency = (amount: number | null | undefined) =>
     amount == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 
+// Margen % esperado a partir del precio de lista y el costo.
+const productMargin = (base: number | null | undefined, cost: number | null | undefined): number | null => {
+    if (cost == null || base == null || base <= 0) return null;
+    return ((base - cost) / base) * 100;
+};
+
 function parseFKError(msg: string): string {
     if (msg.includes('foreign key constraint')) return 'No se puede eliminar: hay registros asociados en uso.';
     if (msg.includes('unique')) return 'Ya existe un registro con ese nombre.';
@@ -219,6 +225,7 @@ function ProductsTab() {
     const [name, setName] = useState('');
     const [desc, setDesc] = useState('');
     const [price, setPrice] = useState('');
+    const [cost, setCost] = useState('');
     const [brandId, setBrandId] = useState('');
     const [catId, setCatId] = useState('');
     const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -230,11 +237,12 @@ function ProductsTab() {
     const { data: brands } = useQuery({ queryKey: ['brands'], queryFn: catalogService.getBrands });
     const { data: cats } = useQuery({ queryKey: ['categories'], queryFn: catalogService.getCategories });
 
-    const reset = () => { setName(''); setDesc(''); setPrice(''); setBrandId(''); setCatId(''); setImageUrl(null); setErr(null); };
+    const reset = () => { setName(''); setDesc(''); setPrice(''); setCost(''); setBrandId(''); setCatId(''); setImageUrl(null); setErr(null); };
     const openCreate = () => { setEditing(null); reset(); setOpen(true); };
     const openEdit = (p: ProductWithRelations) => {
         setEditing(p); setName(p.name); setDesc(p.description || '');
-        setPrice(String(p.base_price)); setBrandId(String(p.brand_id)); setCatId(String(p.category_id));
+        setPrice(String(p.base_price)); setCost(p.cost != null ? String(p.cost) : '');
+        setBrandId(String(p.brand_id)); setCatId(String(p.category_id));
         setImageUrl(p.image_url ?? null);
         setErr(null); setOpen(true);
     };
@@ -257,7 +265,7 @@ function ProductsTab() {
 
     const save = useMutation({
         mutationFn: () => {
-            const payload = { name, description: desc || null, base_price: parseFloat(price), brand_id: Number(brandId), category_id: Number(catId), image_url: imageUrl };
+            const payload = { name, description: desc || null, base_price: parseFloat(price), cost: cost.trim() ? parseFloat(cost.replace(/,/g, '.')) : null, brand_id: Number(brandId), category_id: Number(catId), image_url: imageUrl };
             return editing ? catalogService.updateProduct(editing.id, payload) : catalogService.createProduct(payload);
         },
         onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); setOpen(false); },
@@ -286,11 +294,13 @@ function ProductsTab() {
                             <TableHead className={capsHead}>Marca</TableHead>
                             <TableHead className={capsHead}>Categoría</TableHead>
                             <TableHead className={`text-right ${capsHead}`}>Precio Base</TableHead>
+                            <TableHead className={`text-right ${capsHead}`}>Costo</TableHead>
+                            <TableHead className={`text-right ${capsHead}`}>Margen</TableHead>
                             <TableHead className={`text-right ${capsHead}`}>Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoading && <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Cargando...</TableCell></TableRow>}
+                        {isLoading && <TableRow><TableCell colSpan={8} className="h-16 text-center text-muted-foreground">Cargando...</TableCell></TableRow>}
                         {products?.map(p => (
                             <TableRow key={p.id} className="border-hairline hover:bg-secondary/60">
                                 <TableCell className="w-16 font-mono text-muted-foreground">#{p.id}</TableCell>
@@ -311,12 +321,20 @@ function ProductsTab() {
                                         : '—'}
                                 </TableCell>
                                 <TableCell className="text-right font-mono text-ink">{formatCurrency(p.base_price)}</TableCell>
+                                <TableCell className="text-right font-mono text-muted-foreground">{p.cost != null ? formatCurrency(p.cost) : '—'}</TableCell>
+                                <TableCell className="text-right font-mono">
+                                    {(() => {
+                                        const margin = productMargin(p.base_price, p.cost);
+                                        if (margin == null) return <span className="text-muted-foreground/50">—</span>;
+                                        return <span className={margin >= 0 ? 'text-status-available' : 'text-status-returned'}>{margin.toFixed(0)}%</span>;
+                                    })()}
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <RowActions onEdit={() => openEdit(p)} onDelete={() => { setDelErr(null); setToDelete(p); }} />
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {!isLoading && products?.length === 0 && <TableRow className="hover:bg-transparent"><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Sin productos en el catálogo.</TableCell></TableRow>}
+                        {!isLoading && products?.length === 0 && <TableRow className="hover:bg-transparent"><TableCell colSpan={8} className="h-16 text-center text-muted-foreground">Sin productos en el catálogo.</TableCell></TableRow>}
                     </TableBody>
                 </Table>
             </div>
@@ -368,10 +386,25 @@ function ProductsTab() {
                                 </select>
                             </div>
                         </div>
-                        <div className="grid gap-1.5">
-                            <Label className={capsHead}>Precio Base (MXN) *</Label>
-                            <Input type="number" step="0.01" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="ej. 250.00" className="h-11 font-mono" />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-1.5">
+                                <Label className={capsHead}>Precio Base (MXN) *</Label>
+                                <Input type="number" step="0.01" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="ej. 250.00" className="h-11 font-mono" />
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label className={capsHead}>Costo (MXN)</Label>
+                                <Input type="number" step="0.01" min="0" value={cost} onChange={e => setCost(e.target.value)} placeholder="ej. 100.00" className="h-11 font-mono" />
+                            </div>
                         </div>
+                        {price && cost && parseFloat(price) > 0 && (
+                            <p className="-mt-2 text-xs text-muted-foreground">
+                                Margen esperado:{' '}
+                                <span className="font-semibold text-status-available">
+                                    {productMargin(parseFloat(price), parseFloat(cost.replace(/,/g, '.')))?.toFixed(0)}%
+                                </span>{' '}
+                                · Utilidad por prenda {formatCurrency(parseFloat(price) - parseFloat(cost.replace(/,/g, '.')))}
+                            </p>
+                        )}
                         <div className="grid gap-1.5">
                             <Label className={capsHead}>Descripción (opcional)</Label>
                             <Input value={desc} onChange={e => setDesc(e.target.value)} placeholder="ej. Algodón 100%, corte slim" className="h-11" />

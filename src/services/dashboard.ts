@@ -41,19 +41,29 @@ export const dashboardService = {
         // precio del artículo vinculado.
         const { data: salesToday, error: err3 } = await supabase
             .from('inventory_logs')
-            .select('inventory_items ( price_sold )')
+            .select('inventory_items ( price_sold, products ( cost ) )')
             .eq('action', 'venta')
             .gte('created_at', todayISO);
 
         if (err3) throw err3;
 
-        type SaleRow = { inventory_items: { price_sold: number | null } | null };
+        type SaleRow = {
+            inventory_items: { price_sold: number | null; products: { cost: number | null } | null } | null;
+        };
         const rows = (salesToday ?? []) as unknown as SaleRow[];
         const soldCount = rows.length;
         const totalRevenue = rows.reduce(
             (acc, row) => acc + (Number(row.inventory_items?.price_sold) || 0),
             0,
         );
+        // Costo total de lo vendido hoy (usa el costo actual del producto). La
+        // utilidad = ingresos − costo. Es dato financiero (se muestra solo a
+        // roles financieros en el Dashboard).
+        const totalCost = rows.reduce(
+            (acc, row) => acc + (Number(row.inventory_items?.products?.cost) || 0),
+            0,
+        );
+        const totalProfit = totalRevenue - totalCost;
 
         return {
             availableCount: availableCount || 0,
@@ -61,6 +71,8 @@ export const dashboardService = {
             overdueReservedCount: overdueReservedCount || 0,
             soldCount,
             totalRevenue,
+            totalCost,
+            totalProfit,
         };
     },
 

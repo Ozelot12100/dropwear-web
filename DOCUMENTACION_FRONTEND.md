@@ -111,6 +111,7 @@ La experiencia puramente móvil y PWA acarrea limitaciones de navegador que hemo
 ### 4.9 Features de negocio y mejoras recientes ✅
 - **Fotos de producto:** subida a Storage `product-images` desde el modal de Catálogos; miniatura en Catálogos e Inventario (móvil).
 - **Apartados con cliente:** al apartar se registra cliente, teléfono, vencimiento y anticipo (RPC `change_item_status`). Inventario muestra "🔖 cliente · vence …" y **resalta los vencidos**; el Dashboard marca cuántos apartados están vencidos. El histórico queda embebido en la nota del log (Bitácora).
+- **Costo y margen:** el modal de Catálogos captura el `cost` por producto; la tabla muestra Costo y Margen esperado. El Dashboard muestra **"Utilidad Hoy"** (ingresos − costo) como sub-nota de Ingresos, **solo a roles financieros** (superadmin/socio/contador).
 - **Dashboard en tiempo real (M4):** dejó el polling de 30 s; ahora se suscribe a `inventory_items` e invalida `dashboardStats`/`recentActivity` en vivo.
 - **Vistas móviles con tarjetas:** además de Inventario, **Bitácora** y **Personal** tienen vista de tarjetas en móvil (tabla solo en escritorio).
 - **Revalidación de perfil (H8):** `AuthContext` re-verifica el perfil al recuperar el foco de la pestaña; si un admin bloquea la cuenta (`is_active=false`) cierra la sesión sin recargar.
