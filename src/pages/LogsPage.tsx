@@ -9,8 +9,9 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { Button } from '../components/ui/button';
-import { SlidersHorizontal, Users, Calendar, Banknote, Bookmark, CornerUpLeft, PlusSquare, RefreshCw, type LucideIcon } from 'lucide-react';
+import { SlidersHorizontal, Users, Calendar, Banknote, Bookmark, CornerUpLeft, PlusSquare, RefreshCw, Download, type LucideIcon } from 'lucide-react';
 import { isToday, isYesterday, isThisWeek, isThisMonth, parseISO } from 'date-fns';
+import { downloadCsv, todayStamp } from '../lib/csv';
 
 // ── Metadatos por tipo de operación (diseño Stitch) ───────────────────────────
 type OpMeta = {
@@ -165,6 +166,34 @@ export default function LogsPage() {
         }, {});
     }, [logs]);
 
+    // Exporta la bitácora filtrada a CSV (respeta filtros y visibilidad financiera).
+    const handleExport = () => {
+        const headers = [
+            'ID', 'Fecha', 'Operación', 'Producto', 'Marca', 'Talla', 'Color', 'Operador',
+            ...(canSeeFinancial ? ['Precio venta'] : []),
+            'Estatus anterior', 'Estatus nuevo', 'Notas',
+        ];
+        const rows = filtered.map((log) => {
+            const item = log.inventory_items;
+            const product = item?.products;
+            return [
+                log.id,
+                log.created_at ? formatDate(log.created_at) : '',
+                OPERATION_META[log.action]?.pillLabel ?? log.action,
+                product?.name ?? '',
+                product?.brands?.name ?? '',
+                item?.size ?? '',
+                item?.color ?? '',
+                log.user_profiles?.full_name ?? 'Eliminado',
+                ...(canSeeFinancial ? [item?.price_sold ?? ''] : []),
+                log.previous_status ? statusLabel[log.previous_status] ?? '' : '',
+                log.new_status ? statusLabel[log.new_status] ?? '' : '',
+                log.notes ?? '',
+            ];
+        });
+        downloadCsv(`bitacora-${todayStamp()}.csv`, headers, rows);
+    };
+
     if (isError) return (
         <div className="flex h-48 items-center justify-center text-status-returned">
             Error al cargar el historial operativo.
@@ -183,6 +212,18 @@ export default function LogsPage() {
                         Historial inmutable de todas las operaciones registradas.
                     </p>
                 </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                {/* Exportar CSV */}
+                <button
+                    type="button"
+                    onClick={handleExport}
+                    disabled={filtered.length === 0}
+                    className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-hairline bg-card px-3 text-sm font-medium text-ink transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:h-10"
+                >
+                    <Download className="h-4 w-4" />
+                    <span className="hidden sm:inline">Exportar</span>
+                </button>
 
                 {/* Filtros avanzados Sheet */}
                 <Sheet>
@@ -273,6 +314,7 @@ export default function LogsPage() {
                         </SheetFooter>
                     </SheetContent>
                 </Sheet>
+                </div>
             </div>
 
             {/* ── Pills de filtro por acción ────────────────────────── */}

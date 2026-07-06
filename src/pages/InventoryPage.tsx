@@ -11,7 +11,8 @@ import { TransactionModal } from '../components/inventory/TransactionModal';
 import { AddItemModal } from '../components/inventory/AddItemModal';
 import { EditItemModal } from '../components/inventory/EditItemModal';
 import { RoleGuard } from '../components/layout/RoleGuard';
-import { Plus, ChevronRight, Search, X, Edit2, SlidersHorizontal, Tag, Layers, Ruler, Shirt, Bookmark } from 'lucide-react';
+import { Plus, ChevronRight, Search, X, Edit2, SlidersHorizontal, Tag, Layers, Ruler, Shirt, Bookmark, Download } from 'lucide-react';
+import { downloadCsv, todayStamp } from '../lib/csv';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetClose } from '../components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Label } from '../components/ui/label';
@@ -310,6 +311,30 @@ export default function InventoryPage() {
         return acc;
     }, {}) ?? {};
 
+    // Exporta el inventario filtrado a CSV (respeta filtros de estado, texto y avanzados).
+    const handleExport = () => {
+        const headers = [
+            'ID', 'Producto', 'Marca', 'Categoría', 'Talla', 'Color', 'Estatus',
+            'Precio base', 'Precio venta', 'Cliente apartado', 'Contacto', 'Vence', 'Anticipo',
+        ];
+        const rows = filtered.map((i) => [
+            i.id,
+            i.products?.name ?? '',
+            i.products?.brands?.name ?? '',
+            i.products?.categories?.name ?? '',
+            i.size,
+            i.color,
+            STATUS_CONFIG[i.status]?.label ?? i.status,
+            i.products?.base_price ?? '',
+            i.price_sold ?? '',
+            i.reserved_for ?? '',
+            i.reserved_contact ?? '',
+            i.reserved_until ?? '',
+            i.reserved_deposit ?? '',
+        ]);
+        downloadCsv(`inventario-${todayStamp()}.csv`, headers, rows);
+    };
+
     if (isError) return (
         <div className="flex h-48 items-center justify-center text-status-returned">
             Error al cargar el inventario.
@@ -332,13 +357,24 @@ export default function InventoryPage() {
                         )}
                     </div>
                 </div>
-                <RoleGuard allowed={['socio', 'superadmin']}>
-                    <Button onClick={() => setIsAddModalOpen(true)} className="gap-1.5">
-                        <Plus className="h-4 w-4" />
-                        <span className="hidden sm:inline">Agregar Prenda</span>
-                        <span className="sm:hidden">Agregar</span>
-                    </Button>
-                </RoleGuard>
+                <div className="flex shrink-0 items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={handleExport}
+                        disabled={filtered.length === 0}
+                        className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-hairline bg-card px-3 text-sm font-medium text-ink transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:h-10"
+                    >
+                        <Download className="h-4 w-4" />
+                        <span className="hidden sm:inline">Exportar</span>
+                    </button>
+                    <RoleGuard allowed={['socio', 'superadmin']}>
+                        <Button onClick={() => setIsAddModalOpen(true)} className="gap-1.5">
+                            <Plus className="h-4 w-4" />
+                            <span className="hidden sm:inline">Agregar Prenda</span>
+                            <span className="sm:hidden">Agregar</span>
+                        </Button>
+                    </RoleGuard>
+                </div>
             </div>
 
             {/* ── Búsqueda y Filtros ─────────────────────────────────────────── */}

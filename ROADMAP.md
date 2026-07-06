@@ -31,9 +31,9 @@ Este documento detalla las funcionalidades pendientes para mejorar la experienci
 - **Concepto:** Añadir gráficas visuales (ej. usando `Recharts`) en el Dashboard actual.
 - **Beneficio:** Visualizar curvas de ingresos semanales/mensuales, el top de marcas/categorías más vendidas y conocer los días con mayor flujo de clientes.
 
-### 2.3 Exportación de Reportes (Excel / CSV) 📥
-- **Concepto:** Agregar un botón de "Exportar a Excel" en las vistas de **Inventario** y **Bitácora (Logs)**.
-- **Beneficio:** Indispensable para llevar contabilidad externa, entregar reportes a socios o auditores y hacer respaldos.
+### 2.3 Exportación de Reportes (Excel / CSV) 📥 — ✅ Implementado
+- **Estado:** botón **"Exportar"** en **Inventario** y **Bitácora**. Genera un CSV (con BOM UTF-8, abre bien en Excel) de las filas **según los filtros activos**, sin dependencias externas (`src/lib/csv.ts`). La Bitácora incluye el precio de venta solo para roles financieros.
+- **Beneficio:** contabilidad externa, reportes a socios/auditores y respaldos.
 
 ### 2.4 Control de Gastos (Egresos Operativos) 📉
 - **Concepto:** Una pequeña sección para registrar gastos hormiga o fijos (paquetería, limpieza, servicios, nómina).
