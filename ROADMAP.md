@@ -4,9 +4,9 @@ Este documento detalla las funcionalidades pendientes para mejorar la experienci
 
 ## 1. Experiencia Móvil y Operativa 📱
 
-### 1.1 Soporte PWA (Progressive Web App)
-- **Concepto:** Configurar un `manifest.json` y Service Workers.
-- **Beneficio:** Permite instalar DropWear en la pantalla de inicio de Android/iOS como una app nativa a pantalla completa, ocultando la interfaz del navegador.
+### 1.1 Soporte PWA (Progressive Web App) — 🟡 Parcial (instalable)
+- **Hecho:** `manifest.webmanifest` + iconos (192/512/maskable + apple-touch) + metas de iOS. **Ya se puede instalar** DropWear en la pantalla de inicio de Android/iOS a pantalla completa (display `standalone`), con splash hueso y barra en tinta.
+- **Pendiente (deliberado):** **Service Worker / offline.** Se omitió por ahora porque un SW mal configurado puede dejar a los usuarios con versiones cacheadas rotas en una app de negocio en vivo. Si se quiere offline, agregarlo con `vite-plugin-pwa` (`registerType: 'autoUpdate'`) para evitar el problema de caché obsoleta.
 
 ### 1.2 Lector de Códigos QR / Barras
 - **Concepto:** Integrar la cámara del celular en la vista de inventario.
