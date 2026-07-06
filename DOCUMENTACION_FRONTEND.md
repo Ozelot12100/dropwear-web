@@ -21,10 +21,12 @@ Nuestra necesidad principal tecnológica es eliminar la fricción en la sincroni
 * **Core:** React 19, empaquetado y servido por Vite.
 * **Lenguaje:** TypeScript estricto (no se permite el uso de `any` para las iteraciones de la Base de Datos).
 * **Estilos:** Tailwind CSS (v3) + Tailwind Merge y CLSX para manipulación dinámica de clases.
-* **Componentes Base:** [shadcn/ui](https://ui.shadcn.com/) (Instalado y configurado con Base UI, `@base-ui/react`).
+* **Sistema de diseño (Stitch):** la UI se rediseñó por completo (jul-2026) al sistema **"herramienta operativa premium con alma de marca de ropa"**: base **hueso/tinta**, acento rojo de marca (`#E32130`) y sistema de estatus semántico (Disponible=verde, Apartado=ámbar, Vendido=azul, Devuelto=rojo). El theming es **por tokens** (variables CSS en `src/index.css` mapeadas en `tailwind.config.js`: `bg-background`, `text-ink`, `border-hairline`, `bg-brand`, `bg-status-*`). Tipografía self-hosted vía `@fontsource`: **Inter** (cuerpo/UI, `font-sans`), **Space Grotesk** (títulos, `font-heading`), **JetBrains Mono** (números/precios/IDs, `font-mono`). Detalle en `PLAN_MIGRACION_UI.md`.
+* **Componentes Base:** primitivos de [shadcn/ui](https://ui.shadcn.com/) sobre Base UI (`@base-ui/react`), re-skineados con los tokens Stitch (Button, Input, Dialog, Sheet, Table, Select, Badge…).
 * **Ruteo:** React Router DOM v7.
 * **Gestor de Estado (Server-State):** TanStack React Query v5.
-* **BaaS (Backend):** `@supabase/supabase-js` para Base de datos (PostgreSQL), Autenticación y WebSockets (Realtime).
+* **BaaS (Backend):** `@supabase/supabase-js` para Base de datos (PostgreSQL), Autenticación, Storage (fotos) y WebSockets (Realtime).
+* **Formato:** Prettier (`npm run format`); `.npmrc` con `save-exact=true` fija versiones exactas a futuro.
 
 ---
 
@@ -70,11 +72,12 @@ src/
 
 ### 4.3 Modales de Inventario
 - **`AddItemModal.tsx`:** Formulario para dar de alta prendas seleccionando producto del catálogo, talla y color. Todas las validaciones de campos están implementadas.
-- **`TransactionModal.tsx`:** Actualización de estatus de artículos. Obliga a capturar el `price_sold` si el estatus es `vendido`. Deshabilita opciones de estatus que ya tenga el artículo.
+- **`TransactionModal.tsx`:** Actualización de estatus de artículos vía la RPC atómica `change_item_status`. El nuevo estatus se elige en una **rejilla 2×2 de tarjetas** (punto de color por estado). Obliga a capturar el `price_sold` si es `vendido`. Si es **`apartado`**, captura los datos del cliente (nombre\*, teléfono, fecha de vencimiento\* con default +7 días, anticipo). Deshabilita el estatus actual.
 - **`EditItemModal.tsx`:** Modal de modificación para corregir errores de dedo. Permite editar el producto, color y talla de un artículo específico, dejando rastro de la modificación en la bitácora ("actualizacion_estado").
 
 ### 4.4 Catálogos
-- `CatalogsPage.tsx` con gestión de `brands` (Marcas) y `categories` (Categorías) y `products` (Productos maestros).
+- `CatalogsPage.tsx` con gestión de `brands` (Marcas), `categories` (Categorías) y `products` (Productos maestros), en pestañas.
+- **Foto de producto:** el modal de producto permite **subir imagen** (a Storage `product-images` vía `catalogService.uploadProductImage`) con vista previa; la miniatura aparece en la tabla de Catálogos y en las tarjetas de Inventario.
 
 ### 4.5 Bitácora de Operaciones
 - `LogsPage.tsx` que consume `inventory_logs` mostrando la trazabilidad de cada movimiento (quién, cuándo, qué prenda, qué acción).
@@ -105,17 +108,27 @@ La experiencia puramente móvil y PWA acarrea limitaciones de navegador que hemo
 2. **Supabase "Web Lock Deadlock":** Supabase usa `navigator.locks` subyacentes. En pestañas en modo _Incógnito_ o en Safari, si se recarga la pestaña (`window.location.href`) durante validación asíncrona, el navegador nunca suelta el lock internamente, bloqueando el estado y congelando el login. Se resolvió delegando las transiciones suavemente con React Router y desusando redrecciones forzadas (hard-redirects) tras `signInWithPassword`.
 3. **Pausado de Eventos (Google App WebView):** Al estar la PWA o visor de web dentro de la aplicación de Google, el sistema silencia los eventos en background (`onAuthStateChange` de Supabase nunca se dispara). Se solucionó inyectando **un hard navigate** programado con React Router con `500ms` de retraso como plan alternativo de seguridad tras ganar la sesión.
 
+### 4.9 Features de negocio y mejoras recientes ✅
+- **Fotos de producto:** subida a Storage `product-images` desde el modal de Catálogos; miniatura en Catálogos e Inventario (móvil).
+- **Apartados con cliente:** al apartar se registra cliente, teléfono, vencimiento y anticipo (RPC `change_item_status`). Inventario muestra "🔖 cliente · vence …" y **resalta los vencidos**; el Dashboard marca cuántos apartados están vencidos. El histórico queda embebido en la nota del log (Bitácora).
+- **Dashboard en tiempo real (M4):** dejó el polling de 30 s; ahora se suscribe a `inventory_items` e invalida `dashboardStats`/`recentActivity` en vivo.
+- **Vistas móviles con tarjetas:** además de Inventario, **Bitácora** y **Personal** tienen vista de tarjetas en móvil (tabla solo en escritorio).
+- **Revalidación de perfil (H8):** `AuthContext` re-verifica el perfil al recuperar el foco de la pestaña; si un admin bloquea la cuenta (`is_active=false`) cierra la sesión sin recargar.
+- **Accesibilidad (L4):** `lang="es"`, roles ARIA en pestañas, foco visible.
+
 ---
 
 ## 5. Servicios (`src/services/`)
 
 | Archivo | Métodos principales |
 |---|---|
-| `inventory.ts` | `getAllItems()`, `addItem()`, `updateItemStatus()` |
-| `catalogs.ts` | `getProducts()`, `getBrands()`, `getCategories()`, `createProduct()`, etc. |
-| `users.ts` | `getUsers()`, `createUser()`, `resetPassword()`, `toggleUserStatus()` |
+| `inventory.ts` | `getAllItems()`, `addItem()`, `updateItemStatus()` (incluye datos de apartado), `updateItemDetails()` |
+| `catalogs.ts` | `getProducts/Brands/Categories()`, CRUD de cada uno, `uploadProductImage()` |
+| `dashboard.ts` | `getDashboardStats()` (disponibles, apartados, vencidos, ventas/ingresos de hoy), `getRecentActivity()` |
+| `logs.ts` | `getLogs()` (bitácora con relaciones) |
+| `users.ts` | `getUsers()`, `createUser()`, `resetPassword()`, `toggleUserStatus()`, `updateUserRole()`, `updateProfileName()` |
 
-Todos los métodos que requieren privilegios elevados invocan **Supabase Edge Functions** (nunca exponen `SERVICE_ROLE_KEY` en el cliente).
+Los métodos de escritura de inventario usan **RPCs atómicas** de Postgres; los que requieren privilegios elevados invocan **Supabase Edge Functions** (nunca exponen `SERVICE_ROLE_KEY` en el cliente).
 
 ---
 
@@ -145,7 +158,7 @@ Todos los métodos que requieren privilegios elevados invocan **Supabase Edge Fu
 
 ## 7. Lineamientos de Código para el Equipo
 
-1. **Nunca realizar fetches dentro de `useEffect` directamente:** Usar siempre `useQuery` o `useMutation` de TanStack Query.
+1. **Nunca realizar fetches dentro de `useEffect` directamente:** Usar siempre `useQuery` o `useMutation` de TanStack Query. (Excepción legítima: montar/desmontar **suscripciones realtime** de Supabase con `supabase.channel(...)` sí vive en un `useEffect` que invalida la caché de React Query.)
 2. **Tipado de la base de datos:** Antes de declarar una `interface`, revisar `src/types/index.ts`. Usar los tipos derivados del backend.
 3. **Evitar Código Espagueti:** Si una función hace peticiones a Supabase, debe vivir en `src/services/`. Un componente de React solo inyecta UI y dispara las funciones de servicio.
 4. **Responsivo obligatorio:** Testear frecuentemente reduciendo el simulador del navegador a tamaños de iPhone 13 (390px).

@@ -111,13 +111,34 @@ CREATE TABLE inventory\_logs (
 INSERT INTO categories (name) VALUES ('Shorts');  
 INSERT INTO brands (name) VALUES ('Jordan'), ('Adidas'), ('Nike'), ('Puma');
 
+### **5.1 Evolución del esquema (migraciones versionadas) — FUENTE DE VERDAD ACTUAL**
+
+⚠️ El DDL de arriba es el esquema **inicial**. El esquema real y autoritativo hoy vive en `supabase/migrations/` (migraciones versionadas). Los cambios aplicados sobre el inicial son:
+
+* **`inventory_items`** ganó columnas nuevas:
+  * `image_url` **no** (esa vive en `products`).
+  * `reserved_for TEXT`, `reserved_contact TEXT`, `reserved_until DATE`, `reserved_deposit NUMERIC(10,2)` — datos del **cliente que apartó** la prenda (solo aplican mientras `status='apartado'`; se limpian solos al salir de ese estado). Ver la feature de Apartados abajo.
+* **`products`** ganó `image_url TEXT` (foto del producto, ver Storage abajo).
+* **CHECK constraints de integridad (Fase 2):** `price_sold` obligatorio cuando `status='vendido'`; `price_sold`, `base_price` y `reserved_deposit` no negativos.
+* **RPCs atómicas (Fase 2)** — reemplazan el CRUD multi-paso del cliente por transacciones únicas con `FOR UPDATE` (eliminan la doble venta y el estado inconsistente). `SECURITY INVOKER` (respetan RLS). El actor se sella en el servidor vía triggers (`stamp_log_actor`, `stamp_item_actor`), nunca desde el cliente:
+  * `change_item_status(p_item_id, p_new_status, p_price_sold, p_notes, p_reserved_for, p_reserved_contact, p_reserved_until, p_reserved_deposit)` — cambia estado + inserta el log en una transacción. Exige precio si es venta y nombre de cliente si es apartado.
+  * `add_inventory_item(p_product_id, p_size, p_color)` — alta física (item + log 'creacion', status inicial 'disponible').
+  * `update_item_details(p_item_id, p_product_id, p_size, p_color)` — corrección de detalles físicos + log.
+* **Storage — bucket `product-images`:** público (lectura sin sesión), límite 5 MB, solo jpg/png/webp. Políticas RLS sobre `storage.objects`: **subir/actualizar/borrar** solo `socio`/`superadmin` (vía `current_user_role()`); leer, público. El frontend guarda la URL pública en `products.image_url`.
+
 ## **6\. Políticas de Seguridad (RLS) y Replicación Realtime**
 
-La base de datos cuenta con Seguridad a Nivel de Fila (RLS) activada de manera obligatoria en todas sus tablas. Para agilizar el MVP de DropWear, las políticas actuales operan bajo una regla unificada para usuarios autenticados, asegurando que ninguna entidad anónima externa a la organización pueda interceptar o modificar datos mediante la API REST expuesta:
+⚠️ **Actualizado (Fase 1 — endurecimiento de RLS).** Las políticas **abiertas** originales (`authenticated_all USING(true)`) fueron **reemplazadas por políticas por rol**. La regla ahora es de menor privilegio, no "cualquier autenticado puede todo". Se apoya en la función `public.current_user_role()` (`SECURITY DEFINER`, evita recursión al leer `user_profiles` desde una política).
 
-* **Políticas de Lectura (SELECT):** Otorgadas globalmente a cualquier token válido con el rol authenticated.  
-* **Políticas de Escritura (ALL/INSERT):** Permitidas a usuarios autenticados para agilizar el CRUD entre los tres socios actuales.  
-* **Canales de Tiempo Real:** Las tablas inventory\_items e inventory\_logs han sido explícitamente añadidas al bloque de publicación supabase\_realtime. El motor de base de datos emitirá un payload JSON a cualquier cliente WebSocket activo cuando ocurra un cambio físico en el inventario.
+* **Lectura (SELECT):** sigue abierta a cualquier `authenticated` en las tablas de catálogo/inventario/bitácora (todos los roles ven el stock y el historial).
+* **Escritura por rol:**
+  * `categories` / `brands` / `products`: escribir solo `socio`/`superadmin`.
+  * `inventory_items`: **insertar** `vendedor`+; **actualizar** `vendedor`/`repartidor`/`socio`/`superadmin`; **borrar** solo `socio`/`superadmin`.
+  * `inventory_logs`: **inmutable** — solo `INSERT` (atribuido a uno mismo, `partner_id = auth.uid()`); sin `UPDATE`/`DELETE`, nadie puede editar ni borrar el historial.
+  * `user_profiles`: no escribible desde el cliente; toda administración de usuarios pasa por Edge Functions (ver §8).
+* **Sellado de actor:** triggers `stamp_log_actor` y `stamp_item_actor` ignoran cualquier `partner_id`/`updated_by` que envíe el cliente y lo fijan a la identidad real del JWT (anti-spoofing).
+* **Nota pendiente (M2):** `price_sold` sigue siendo legible por todos los roles a nivel de API (la restricción financiera hoy es solo en la UI). Endurecerlo a nivel de columna queda pendiente para cuando existan empleados de piso.
+* **Canales de Tiempo Real:** `inventory_items` e `inventory_logs` están en la publicación `supabase_realtime`. El Inventario y el Dashboard escuchan `inventory_items` e invalidan la caché de React Query ante cualquier cambio, re-renderizando sin recargar.
 
 ## **7\. Lineamientos Críticos para el Desarrollo del Frontend**
 

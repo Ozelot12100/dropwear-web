@@ -4,6 +4,8 @@ Bienvenido al repositorio de **DropWear**, una plataforma de punto de venta (POS
 
 DropWear ha sido planeado, diseñado y construido utilizando React (TypeScript + Vite) en el frontend y Supabase (Postgres + Edge Functions) en el backend, priorizando siempre la estabilidad transaccional, trazabilidad de inventarios y una interfaz *Mobile-First*.
 
+> **Estado (jul-2026):** en producción (`dropwear.vercel.app`). La UI está rediseñada al sistema **Stitch** (base hueso/tinta + tipografía Space Grotesk / Inter / JetBrains Mono; theming por tokens). Features vivas: inventario en tiempo real, catálogos con **foto de producto**, **apartados con cliente y vencimiento**, bitácora, gestión de personal y perfil. Ver `AUDITORIA.md` para el estado de endurecimiento y pendientes.
+
 ---
 
 ## 📚 Índice de Documentación Técnica
@@ -61,6 +63,9 @@ Para que el próximo equipo de desarrollo o compañeros programadores puedan ent
 ## 🛠 Comandos Útiles para el Nuevo Equipo
 
 * **`npm run build`**: Compila el proyecto verificando estrictamente los tipos de TypeScript. Si hay errores (que no los hay actualmente), el CI detendrá el despliegue a Producción (Vercel).
+* **`npm run lint`** / **`npm run format`**: ESLint y Prettier. Correr antes de commitear cambios grandes.
+* **`npm run test`**: Ejecuta la suite de Vitest.
 * **Despliegue de Edge Functions:** Cuando modifiquen una función en `supabase/functions/`, deben subirla con `supabase functions deploy <nombre_funcion> --no-verify-jwt`.
+* **Migraciones de BD:** el esquema vive en `supabase/migrations/` (versionado). Nota de infra: desde algunos entornos el pooler/`supabase db push` no conecta; en ese caso se aplican vía la Management API de Supabase.
 
 ¡Mucho éxito con la continuación del proyecto! Revisar los documentos listados arriba garantiza dominar todo el ecosistema de DropWear sin fisuras.
