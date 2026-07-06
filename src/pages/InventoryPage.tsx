@@ -11,7 +11,7 @@ import { TransactionModal } from '../components/inventory/TransactionModal';
 import { AddItemModal } from '../components/inventory/AddItemModal';
 import { EditItemModal } from '../components/inventory/EditItemModal';
 import { RoleGuard } from '../components/layout/RoleGuard';
-import { Plus, ChevronRight, Search, X, Edit2, SlidersHorizontal, Tag, Layers, Ruler, Shirt } from 'lucide-react';
+import { Plus, ChevronRight, Search, X, Edit2, SlidersHorizontal, Tag, Layers, Ruler, Shirt, Bookmark } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetClose } from '../components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Label } from '../components/ui/label';
@@ -30,6 +30,33 @@ const formatCurrency = (amount: number | null | undefined) =>
     amount == null
         ? '—'
         : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+
+// ── Apartados: vencimiento ────────────────────────────────────────────────────
+const isReservationOverdue = (until: string | null | undefined) => {
+    if (!until) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(`${until}T00:00:00`) < today;
+};
+
+const formatReservedDate = (until: string) =>
+    new Date(`${until}T00:00:00`).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+
+// Línea con los datos del cliente que apartó la prenda (+ resaltado si venció).
+function ReservationLine({ item }: { item: InventoryItemWithRelations }) {
+    if (item.status !== 'apartado' || !item.reserved_for) return null;
+    const overdue = isReservationOverdue(item.reserved_until);
+    return (
+        <div className={`flex items-center gap-1.5 text-[11px] ${overdue ? 'text-status-returned' : 'text-muted-foreground'}`}>
+            <Bookmark className="h-3 w-3 shrink-0" />
+            <span className="truncate">
+                {item.reserved_for}
+                {item.reserved_until ? ` · vence ${formatReservedDate(item.reserved_until)}` : ''}
+                {overdue ? ' (vencido)' : ''}
+            </span>
+        </div>
+    );
+}
 
 // ── Filtros de estado ─────────────────────────────────────────────────────────
 const STATUS_FILTERS: { label: string; value: ItemStatus | 'todos' }[] = [
@@ -102,6 +129,7 @@ function ItemCard({
                     <span className="text-xs capitalize text-muted-foreground">{item.color}</span>
                     <StatusLabel status={item.status} />
                 </div>
+                <ReservationLine item={item} />
             </button>
 
             {/* Precio + acciones */}
@@ -540,7 +568,10 @@ export default function InventoryPage() {
                                 <TableCell className="text-muted-foreground">{item.products?.brands?.name}</TableCell>
                                 <TableCell><SizeChip size={item.size} /></TableCell>
                                 <TableCell className="capitalize text-ink">{item.color}</TableCell>
-                                <TableCell><StatusPill status={item.status} /></TableCell>
+                                <TableCell>
+                                    <StatusPill status={item.status} />
+                                    <div className="mt-1"><ReservationLine item={item} /></div>
+                                </TableCell>
                                 <TableCell className="text-right">
                                     {item.status === 'vendido'
                                         ? <span className="font-mono font-semibold text-status-available">{formatCurrency(item.price_sold)}</span>

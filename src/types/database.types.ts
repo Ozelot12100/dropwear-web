@@ -57,6 +57,10 @@ export type Database = {
           id: number
           price_sold: number | null
           product_id: number
+          reserved_contact: string | null
+          reserved_deposit: number | null
+          reserved_for: string | null
+          reserved_until: string | null
           size: string
           status: Database["public"]["Enums"]["item_status"]
           updated_at: string | null
@@ -68,6 +72,10 @@ export type Database = {
           id?: never
           price_sold?: number | null
           product_id: number
+          reserved_contact?: string | null
+          reserved_deposit?: number | null
+          reserved_for?: string | null
+          reserved_until?: string | null
           size: string
           status?: Database["public"]["Enums"]["item_status"]
           updated_at?: string | null
@@ -79,6 +87,10 @@ export type Database = {
           id?: never
           price_sold?: number | null
           product_id?: number
+          reserved_contact?: string | null
+          reserved_deposit?: number | null
+          reserved_for?: string | null
+          reserved_until?: string | null
           size?: string
           status?: Database["public"]["Enums"]["item_status"]
           updated_at?: string | null
@@ -227,6 +239,10 @@ export type Database = {
           id: number
           price_sold: number | null
           product_id: number
+          reserved_contact: string | null
+          reserved_deposit: number | null
+          reserved_for: string | null
+          reserved_until: string | null
           size: string
           status: Database["public"]["Enums"]["item_status"]
           updated_at: string | null
@@ -245,6 +261,10 @@ export type Database = {
           p_new_status: Database["public"]["Enums"]["item_status"]
           p_notes?: string
           p_price_sold?: number
+          p_reserved_contact?: string
+          p_reserved_deposit?: number
+          p_reserved_for?: string
+          p_reserved_until?: string
         }
         Returns: {
           color: string
@@ -252,6 +272,10 @@ export type Database = {
           id: number
           price_sold: number | null
           product_id: number
+          reserved_contact: string | null
+          reserved_deposit: number | null
+          reserved_for: string | null
+          reserved_until: string | null
           size: string
           status: Database["public"]["Enums"]["item_status"]
           updated_at: string | null
@@ -281,6 +305,10 @@ export type Database = {
           id: number
           price_sold: number | null
           product_id: number
+          reserved_contact: string | null
+          reserved_deposit: number | null
+          reserved_for: string | null
+          reserved_until: string | null
           size: string
           status: Database["public"]["Enums"]["item_status"]
           updated_at: string | null
