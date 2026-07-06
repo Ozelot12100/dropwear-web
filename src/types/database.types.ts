@@ -159,6 +159,7 @@ export type Database = {
           base_price: number
           brand_id: number
           category_id: number
+          cost: number | null
           created_at: string | null
           description: string | null
           id: number
@@ -169,6 +170,7 @@ export type Database = {
           base_price?: number
           brand_id: number
           category_id: number
+          cost?: number | null
           created_at?: string | null
           description?: string | null
           id?: never
@@ -179,6 +181,7 @@ export type Database = {
           base_price?: number
           brand_id?: number
           category_id?: number
+          cost?: number | null
           created_at?: string | null
           description?: string | null
           id?: never

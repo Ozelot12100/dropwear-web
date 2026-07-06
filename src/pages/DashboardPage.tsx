@@ -2,12 +2,18 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks';
 import { dashboardService } from '../services/dashboard';
 import { Skeleton } from '../components/ui/skeleton';
 import { Package, Bookmark, Tag, Banknote, Calendar, type LucideIcon } from 'lucide-react';
 
+// Roles que pueden ver información financiera (utilidad/margen).
+const FINANCIAL_ROLES = ['superadmin', 'socio', 'contador'];
+
 export default function DashboardPage() {
     const queryClient = useQueryClient();
+    const { profile } = useAuth();
+    const canSeeFinancial = profile?.role ? FINANCIAL_ROLES.includes(profile.role) : false;
 
     const { data: stats, isLoading: isLoadingStats } = useQuery({
         queryKey: ['dashboardStats'],
@@ -70,6 +76,10 @@ export default function DashboardPage() {
 
     // Configuración de las 4 tarjetas KPI (barra lateral de estatus + número en mono).
     const overdue = stats?.overdueReservedCount ?? 0;
+    // Utilidad y margen del día (solo para roles financieros)
+    const profit = stats?.totalProfit ?? 0;
+    const marginPct = stats && stats.totalRevenue > 0 ? Math.round((profit / stats.totalRevenue) * 100) : null;
+
     const metrics: {
         key: string;
         label: string;
@@ -79,7 +89,7 @@ export default function DashboardPage() {
         bar: string;
         valueClass: string;
         big?: boolean;
-        subNote?: string | null;
+        subNote?: { text: string; className: string } | null;
     }[] = [
         {
             key: 'available',
@@ -100,7 +110,9 @@ export default function DashboardPage() {
             bar: 'bg-status-reserved',
             valueClass: 'text-status-reserved',
             big: true,
-            subNote: overdue > 0 ? `${overdue} vencido${overdue > 1 ? 's' : ''}` : null,
+            subNote: overdue > 0
+                ? { text: `${overdue} vencido${overdue > 1 ? 's' : ''}`, className: 'text-status-returned' }
+                : null,
         },
         {
             key: 'sold',
@@ -121,6 +133,12 @@ export default function DashboardPage() {
             bar: 'bg-status-available',
             valueClass: 'text-status-available',
             big: false,
+            subNote: canSeeFinancial
+                ? {
+                    text: `Utilidad ${formatCurrency(profit)}${marginPct != null ? ` · ${marginPct}%` : ''}`,
+                    className: profit >= 0 ? 'text-status-available' : 'text-status-returned',
+                }
+                : null,
         },
     ];
 
@@ -168,7 +186,7 @@ export default function DashboardPage() {
                             )}
                             <p className="mt-2 text-xs text-muted-foreground">{caption}</p>
                             {subNote && (
-                                <p className="mt-0.5 text-[11px] font-semibold text-status-returned">{subNote}</p>
+                                <p className={`mt-0.5 text-[11px] font-semibold ${subNote.className}`}>{subNote.text}</p>
                             )}
                         </div>
                     </div>
