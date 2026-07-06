@@ -72,7 +72,9 @@ Registro de la auditoría técnica realizada el **5 de julio de 2026** (código,
 
 **Requiere tu participación:**
 - **Sentry** — crear el proyecto y definir `VITE_SENTRY_DSN` (el hook ya está cableado).
-- **Producto / datos** — fotos de prendas, cliente en apartados (nombre/contacto/vencimiento), y costo de prenda para calcular margen. Son huecos del modelo de datos que requieren decisión de negocio.
+- **Costo de prenda para calcular margen** — hueco del modelo de datos; permitiría mostrar utilidad/margen (no solo ingresos). Requiere capturar el costo por producto. Pendiente de decisión.
+- ✅ **Fotos de prendas** — implementado (bucket Storage + `image_url`).
+- ✅ **Cliente en apartados** (nombre/contacto/vencimiento/anticipo) — implementado; los apartados vencidos se resaltan en Inventario y Dashboard.
 
 **Técnico, aún pendiente:**
 - M2 · ocultar `price_sold` a roles no financieros a **nivel de columna** (vista o grants en Postgres). Requiere una migración adicional a producción **y** refactor de las queries de inventario/bitácora para leer de una vista sin la columna; por eso se dejó aparte. Hoy la restricción es solo en la UI (`canSeeFinancial`).
