@@ -23,9 +23,10 @@ Este documento detalla las funcionalidades pendientes para mejorar la experienci
 
 ## 2. Administración y Control del Negocio (PC y Gerencia) 💼
 
-### 2.1 Módulo de Corte de Caja (Arqueo) 💰
-- **Concepto:** Un sistema para aperturar caja con un fondo inicial y cerrarla al final del turno.
-- **Beneficio:** Permite cuadrar el efectivo/transferencias reales de la tienda física contra las acciones registradas en sistema, detectando sobrantes o faltantes.
+### 2.1 Módulo de Corte de Caja (Arqueo) 💰 — ✅ Implementado
+- **Estado:** cada venta registra su **método de pago** (efectivo/transferencia/tarjeta) — se captura en el modal de venta y en el remate en lote, extendiendo la RPC `change_item_status` (ahora 9 args) + columna `inventory_items.payment_method`. La página **Corte de Caja** (`/corte`, roles financieros) muestra las **ventas del día por método**, y hace el arqueo: `fondo inicial + ventas en efectivo = efectivo esperado`, se captura el **efectivo contado** y se calcula la **diferencia** (sobrante/faltante). Los cortes se guardan en la tabla `cash_cuts` (con historial). Escritura solo `socio`/`superadmin`; `contador` lo consulta.
+- **Nota (v1):** el arqueo reconcilia el **efectivo de ventas** (no descuenta gastos en efectivo/retiros; queda como refinamiento futuro).
+- **Beneficio:** cuadrar el efectivo real del cajón contra el sistema, detectando faltantes/sobrantes a diario.
 
 ### 2.2 Panel de Analítica y Gráficas 📊 — ✅ Implementado (v1)
 - **Estado:** sección **"Análisis del Negocio"** en el Dashboard (solo roles financieros) con dos gráficas: **tendencia de 6 meses** (barras de ingresos + utilidad neta por mes) y **top 5 productos** del mes en curso (barras horizontales por ingreso). Datos derivados de `inventory_logs` + `products.cost` + `expenses` vía `analyticsService.getBusinessAnalytics`. Se actualiza en tiempo real con las ventas (invalida `businessAnalytics` en el canal de `inventory_items`).

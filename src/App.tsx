@@ -12,6 +12,7 @@ const InventoryPage = lazy(() => import('./pages/InventoryPage'));
 const CatalogsPage = lazy(() => import('./pages/CatalogsPage'));
 const LogsPage = lazy(() => import('./pages/LogsPage'));
 const ExpensesPage = lazy(() => import('./pages/ExpensesPage'));
+const CashCutPage = lazy(() => import('./pages/CashCutPage'));
 const StaffPage = lazy(() => import('./pages/StaffPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
@@ -62,6 +63,16 @@ export default function App() {
                         element={
                             <RoleGuard allowed={['superadmin', 'socio', 'contador']} mode="redirect">
                                 <ExpensesPage />
+                            </RoleGuard>
+                        }
+                    />
+
+                    {/* Corte de caja: dato financiero → superadmin, socio y contador */}
+                    <Route
+                        path="/corte"
+                        element={
+                            <RoleGuard allowed={['superadmin', 'socio', 'contador']} mode="redirect">
+                                <CashCutPage />
                             </RoleGuard>
                         }
                     />

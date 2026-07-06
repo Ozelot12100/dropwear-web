@@ -32,6 +32,53 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_cuts: {
+        Row: {
+          counted_cash: number
+          created_at: string
+          created_by: string | null
+          cut_date: string
+          difference: number
+          expected_cash: number
+          id: number
+          notes: string | null
+          opening_float: number
+          sales_cash: number
+        }
+        Insert: {
+          counted_cash: number
+          created_at?: string
+          created_by?: string | null
+          cut_date?: string
+          difference: number
+          expected_cash: number
+          id?: never
+          notes?: string | null
+          opening_float?: number
+          sales_cash?: number
+        }
+        Update: {
+          counted_cash?: number
+          created_at?: string
+          created_by?: string | null
+          cut_date?: string
+          difference?: number
+          expected_cash?: number
+          id?: never
+          notes?: string | null
+          opening_float?: number
+          sales_cash?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_cuts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string | null
@@ -93,6 +140,7 @@ export type Database = {
           color: string
           created_at: string | null
           id: number
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
           price_sold: number | null
           product_id: number
           reserved_contact: string | null
@@ -108,6 +156,7 @@ export type Database = {
           color: string
           created_at?: string | null
           id?: never
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
           price_sold?: number | null
           product_id: number
           reserved_contact?: string | null
@@ -123,6 +172,7 @@ export type Database = {
           color?: string
           created_at?: string | null
           id?: never
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
           price_sold?: number | null
           product_id?: number
           reserved_contact?: string | null
@@ -278,6 +328,7 @@ export type Database = {
           color: string
           created_at: string | null
           id: number
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
           price_sold: number | null
           product_id: number
           reserved_contact: string | null
@@ -301,6 +352,7 @@ export type Database = {
           p_item_id: number
           p_new_status: Database["public"]["Enums"]["item_status"]
           p_notes?: string
+          p_payment_method?: Database["public"]["Enums"]["payment_method"]
           p_price_sold?: number
           p_reserved_contact?: string
           p_reserved_deposit?: number
@@ -311,6 +363,7 @@ export type Database = {
           color: string
           created_at: string | null
           id: number
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
           price_sold: number | null
           product_id: number
           reserved_contact: string | null
@@ -344,6 +397,7 @@ export type Database = {
           color: string
           created_at: string | null
           id: number
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
           price_sold: number | null
           product_id: number
           reserved_contact: string | null
@@ -371,6 +425,7 @@ export type Database = {
         | "venta"
         | "apartado"
         | "devolucion"
+      payment_method: "efectivo" | "transferencia" | "tarjeta"
       user_role: "superadmin" | "socio" | "vendedor" | "repartidor" | "contador"
     }
     CompositeTypes: {
@@ -507,6 +562,7 @@ export const Constants = {
         "apartado",
         "devolucion",
       ],
+      payment_method: ["efectivo", "transferencia", "tarjeta"],
       user_role: ["superadmin", "socio", "vendedor", "repartidor", "contador"],
     },
   },

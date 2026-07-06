@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { inventoryService } from '../services/inventory';
-import type { InventoryItemWithRelations, ItemStatus } from '../types';
+import type { InventoryItemWithRelations, ItemStatus, PaymentMethod } from '../types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Skeleton } from '../components/ui/skeleton';
@@ -255,6 +255,7 @@ export default function InventoryPage() {
     const [returnConfirm, setReturnConfirm] = useState(false);
     const [remateOpen, setRemateOpen] = useState(false);
     const [ratePrice, setRatePrice] = useState('');
+    const [ratePaymentMethod, setRatePaymentMethod] = useState<PaymentMethod>('efectivo');
 
     // Contador de filtros activos
     const activeFiltersCount = (advancedFilters.brand !== 'todas' ? 1 : 0) +
@@ -394,7 +395,7 @@ export default function InventoryPage() {
         action: string,
         targets: InventoryItemWithRelations[],
         newStatus: ItemStatus,
-        opts?: { priceSold?: number; notes?: string },
+        opts?: { priceSold?: number; notes?: string; paymentMethod?: PaymentMethod },
     ) => {
         setBulkBusy(true);
         let ok = 0;
@@ -406,6 +407,7 @@ export default function InventoryPage() {
                     newStatus,
                     priceSold: opts?.priceSold ?? null,
                     notes: opts?.notes,
+                    paymentMethod: opts?.paymentMethod,
                 });
                 ok += 1;
             } catch {
@@ -425,7 +427,7 @@ export default function InventoryPage() {
     const handleBulkSell = async () => {
         const price = parseFloat(ratePrice.replace(/,/g, '.'));
         if (!(price > 0)) return;
-        await runBulk('Remate', eligibleSell, 'vendido', { priceSold: price, notes: 'Venta en lote (remate)' });
+        await runBulk('Remate', eligibleSell, 'vendido', { priceSold: price, notes: 'Venta en lote (remate)', paymentMethod: ratePaymentMethod });
         setRemateOpen(false);
         setRatePrice('');
     };
@@ -862,6 +864,25 @@ export default function InventoryPage() {
                                 value={ratePrice} onChange={(e) => setRatePrice(e.target.value)}
                                 placeholder="ej. 150.00" className="h-11 font-mono" autoFocus
                             />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Método de pago</Label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {(['efectivo', 'transferencia', 'tarjeta'] as PaymentMethod[]).map((m) => (
+                                    <button
+                                        key={m}
+                                        type="button"
+                                        onClick={() => setRatePaymentMethod(m)}
+                                        className={`rounded-lg border px-2 py-2 text-xs font-semibold capitalize transition-all ${
+                                            ratePaymentMethod === m
+                                                ? 'border-ink bg-ink text-white'
+                                                : 'border-hairline bg-card text-muted-foreground hover:bg-secondary'
+                                        }`}
+                                    >
+                                        {m}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                         {parseFloat(ratePrice.replace(/,/g, '.')) > 0 && eligibleSell.length > 0 && (
                             <p className="text-xs text-muted-foreground">

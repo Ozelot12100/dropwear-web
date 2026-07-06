@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { ItemStatus, InventoryItemWithRelations } from '../types';
+import type { ItemStatus, PaymentMethod, InventoryItemWithRelations } from '../types';
 
 export const inventoryService = {
     /**
@@ -51,6 +51,7 @@ export const inventoryService = {
         reservedContact,
         reservedUntil,
         reservedDeposit,
+        paymentMethod,
     }: {
         itemId: number;
         newStatus: ItemStatus;
@@ -61,6 +62,8 @@ export const inventoryService = {
         reservedContact?: string;
         reservedUntil?: string; // 'YYYY-MM-DD'
         reservedDeposit?: number | null;
+        // Método de pago (solo se envía cuando newStatus === 'vendido')
+        paymentMethod?: PaymentMethod;
     }) {
         const isReserve = newStatus === 'apartado';
         const { error } = await supabase.rpc('change_item_status', {
@@ -72,6 +75,7 @@ export const inventoryService = {
             p_reserved_contact: isReserve ? reservedContact?.trim() || undefined : undefined,
             p_reserved_until: isReserve ? reservedUntil || undefined : undefined,
             p_reserved_deposit: isReserve ? (reservedDeposit ?? undefined) : undefined,
+            p_payment_method: newStatus === 'vendido' ? (paymentMethod ?? undefined) : undefined,
         });
 
         if (error) throw error;

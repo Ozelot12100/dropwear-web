@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { inventoryService } from '../../services/inventory';
 import { useAuth } from '../../hooks';
-import type { ItemStatus, InventoryItemWithRelations } from '../../types';
+import type { ItemStatus, PaymentMethod, InventoryItemWithRelations } from '../../types';
 import {
     Dialog,
     DialogContent,
@@ -27,6 +27,12 @@ const STATUS_META: Record<string, { label: string; dot: string; text: string; ch
 };
 
 const STATUS_OPTIONS: ItemStatus[] = ['disponible', 'apartado', 'vendido', 'devuelto'];
+
+const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+    { value: 'efectivo', label: 'Efectivo' },
+    { value: 'transferencia', label: 'Transferencia' },
+    { value: 'tarjeta', label: 'Tarjeta' },
+];
 
 const formatCurrency = (amount: number | null | undefined) =>
     amount == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
@@ -52,6 +58,9 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
     const [reservedUntil, setReservedUntil] = useState('');
     const [reservedDeposit, setReservedDeposit] = useState('');
 
+    // Método de pago (para ventas)
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('efectivo');
+
     // Inicializar el estado de venta cuando se abre un ítem
     const handleOpenChange = (open: boolean) => {
         if (!open) {
@@ -63,6 +72,7 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
             setReservedContact('');
             setReservedUntil('');
             setReservedDeposit('');
+            setPaymentMethod('efectivo');
             onClose();
         }
     };
@@ -134,6 +144,7 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                 reservedContact: reservedContact,
                 reservedUntil: reservedUntil,
                 reservedDeposit: parsedDeposit,
+                paymentMethod: selectedStatus === 'vendido' ? paymentMethod : undefined,
             });
 
             await Promise.race([updatePromise, timeoutPromise]);
@@ -298,6 +309,24 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                                     required
                                     autoFocus
                                 />
+                                {/* Método de pago (alimenta el Corte de Caja) */}
+                                <Label className="mt-1 text-sm font-medium text-ink">Método de pago</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {PAYMENT_METHODS.map(({ value, label }) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() => setPaymentMethod(value)}
+                                            className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-all ${
+                                                paymentMethod === value
+                                                    ? 'border-ink bg-ink text-white'
+                                                    : 'border-hairline bg-card text-muted-foreground hover:bg-secondary'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
 

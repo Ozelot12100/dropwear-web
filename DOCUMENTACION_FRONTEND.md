@@ -76,7 +76,7 @@ src/
 
 ### 4.3 Modales de Inventario
 - **`AddItemModal.tsx`:** Formulario para dar de alta prendas seleccionando producto del catálogo, talla y color. Todas las validaciones de campos están implementadas.
-- **`TransactionModal.tsx`:** Actualización de estatus de artículos vía la RPC atómica `change_item_status`. El nuevo estatus se elige en una **rejilla 2×2 de tarjetas** (punto de color por estado). Obliga a capturar el `price_sold` si es `vendido`. Si es **`apartado`**, captura los datos del cliente (nombre\*, teléfono, fecha de vencimiento\* con default +7 días, anticipo). Deshabilita el estatus actual.
+- **`TransactionModal.tsx`:** Actualización de estatus de artículos vía la RPC atómica `change_item_status`. El nuevo estatus se elige en una **rejilla 2×2 de tarjetas** (punto de color por estado). Obliga a capturar el `price_sold` si es `vendido` y elegir el **método de pago** (efectivo/transferencia/tarjeta; alimenta el Corte de Caja). Si es **`apartado`**, captura los datos del cliente (nombre\*, teléfono, fecha de vencimiento\* con default +7 días, anticipo). Deshabilita el estatus actual.
 - **`EditItemModal.tsx`:** Modal de modificación para corregir errores de dedo. Permite editar el producto, color y talla de un artículo específico, dejando rastro de la modificación en la bitácora ("actualizacion_estado").
 
 ### 4.4 Catálogos
@@ -124,6 +124,7 @@ La experiencia puramente móvil y PWA acarrea limitaciones de navegador que hemo
 - **Costo y margen:** el modal de Catálogos captura el `cost` por producto; la tabla muestra Costo y Margen esperado. El Dashboard muestra **"Utilidad Hoy"** (ingresos − costo) como sub-nota de Ingresos, **solo a roles financieros** (superadmin/socio/contador).
 - **Dashboard en tiempo real (M4):** dejó el polling de 30 s; ahora se suscribe a `inventory_items` e invalida `dashboardStats`/`recentActivity`/`businessAnalytics` en vivo.
 - **Panel de Analítica en el Dashboard:** sección **"Análisis del Negocio"** (`components/dashboard/BusinessAnalytics.tsx`, solo roles financieros) con gráficas propias **sin dependencias** (CSS): tendencia de **6 meses** (ingresos + utilidad neta por mes) y **top 5 productos** del mes. Servicio `analytics.ts`; se refresca en tiempo real con las ventas. (Roadmap 2.2 ✅)
+- **Método de pago + Corte de Caja:** cada venta registra su método (efectivo/transferencia/tarjeta) en el modal de venta y en el remate en lote. La página **Corte de Caja** (`/corte`, `CashCutPage`, roles financieros) muestra las ventas del día por método y hace el arqueo (`fondo + ventas efectivo = esperado` vs. contado → diferencia), guardando cada corte en `cash_cuts`. Escritura solo `socio`/`superadmin`. (Roadmap 2.1 ✅)
 - **Vistas móviles con tarjetas:** además de Inventario, **Bitácora** y **Personal** tienen vista de tarjetas en móvil (tabla solo en escritorio).
 - **Revalidación de perfil (H8):** `AuthContext` re-verifica el perfil al recuperar el foco de la pestaña; si un admin bloquea la cuenta (`is_active=false`) cierra la sesión sin recargar.
 - **Accesibilidad (L4):** `lang="es"`, roles ARIA en pestañas, foco visible.
@@ -140,6 +141,7 @@ La experiencia puramente móvil y PWA acarrea limitaciones de navegador que hemo
 | `logs.ts` | `getLogs()` (bitácora con relaciones) |
 | `expenses.ts` | `getExpenses()`, `getMonthlyFinancials()` (ingresos − COGS − gastos), `createExpense/updateExpense/deleteExpense()` |
 | `analytics.ts` | `getBusinessAnalytics()` (tendencia 6 meses + top productos, para el panel del Dashboard) |
+| `cashcut.ts` | `getDaySales()` (ventas del día por método), `getCashCuts()`, `createCashCut()` (Corte de Caja) |
 | `users.ts` | `getUsers()`, `createUser()`, `resetPassword()`, `toggleUserStatus()`, `updateUserRole()`, `updateProfileName()` |
 
 Los métodos de escritura de inventario usan **RPCs atómicas** de Postgres; los que requieren privilegios elevados invocan **Supabase Edge Functions** (nunca exponen `SERVICE_ROLE_KEY` en el cliente).
