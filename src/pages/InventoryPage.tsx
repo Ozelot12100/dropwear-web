@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { inventoryService } from '../services/inventory';
@@ -113,23 +114,134 @@ function SelectBox({ checked }: { checked: boolean }) {
     );
 }
 
-// ── Tarjeta de ítem para móvil ───────────────────────────────────────────────
+// ── Acciones rápidas de swipe (contextuales por estado) ───────────────────────
+type CardAction = { key: string; label: string; icon: LucideIcon; cls: string; run: () => void };
+
+function quickActionsFor(
+    status: string,
+    onQuickStatus: (s: ItemStatus) => void,
+    onEdit: () => void,
+): CardAction[] {
+    switch (status) {
+        case 'disponible':
+            return [
+                { key: 'apartar', label: 'Apartar', icon: Bookmark, cls: 'bg-status-reserved text-white', run: () => onQuickStatus('apartado') },
+                { key: 'vender', label: 'Vender', icon: Banknote, cls: 'bg-status-available text-white', run: () => onQuickStatus('vendido') },
+            ];
+        case 'apartado':
+            return [
+                { key: 'liberar', label: 'Liberar', icon: RotateCcw, cls: 'bg-ink text-white', run: () => onQuickStatus('disponible') },
+                { key: 'vender', label: 'Vender', icon: Banknote, cls: 'bg-status-available text-white', run: () => onQuickStatus('vendido') },
+            ];
+        case 'vendido':
+            return [
+                { key: 'editar', label: 'Editar', icon: Edit2, cls: 'bg-secondary text-ink', run: onEdit },
+                { key: 'devolver', label: 'Devolver', icon: RotateCcw, cls: 'bg-status-returned text-white', run: () => onQuickStatus('devuelto') },
+            ];
+        case 'devuelto':
+            return [
+                { key: 'editar', label: 'Editar', icon: Edit2, cls: 'bg-secondary text-ink', run: onEdit },
+                { key: 'stock', label: 'A stock', icon: Check, cls: 'bg-status-available text-white', run: () => onQuickStatus('disponible') },
+            ];
+        default:
+            return [];
+    }
+}
+
+const ACTION_W = 76; // ancho por botón revelado (px)
+
+// ── Tarjeta de ítem para móvil (con swipe-to-action) ──────────────────────────
 function ItemCard({
     item,
     onPress,
     onEdit,
+    onQuickStatus,
     selectMode,
     selected,
     onToggleSelect,
+    swipeOpen,
+    onSwipeOpenChange,
 }: {
     item: InventoryItemWithRelations;
     onPress: () => void;
     onEdit: () => void;
+    onQuickStatus: (s: ItemStatus) => void;
     selectMode: boolean;
     selected: boolean;
     onToggleSelect: () => void;
+    swipeOpen: boolean;
+    onSwipeOpenChange: (open: boolean) => void;
 }) {
     const price = item.status === 'vendido' ? item.price_sold : item.products?.base_price;
+
+    const actions = selectMode ? [] : quickActionsFor(item.status, onQuickStatus, onEdit);
+    const revealW = actions.length * ACTION_W;
+
+    // ── Mecánica del swipe (pointer events + touch-action: pan-y) ──────────────
+    const [offset, setOffset] = useState(0);
+    const [dragging, setDragging] = useState(false);
+    const startX = useRef(0);
+    const startY = useRef(0);
+    const startOffset = useRef(0);
+    const axis = useRef<'x' | 'y' | null>(null);
+    const draggingRef = useRef(false);
+    const suppressClick = useRef(false);
+
+    // Cuando el padre cierra esta tarjeta (porque se abrió otra), la regresamos.
+    useEffect(() => {
+        if (!swipeOpen && !draggingRef.current) setOffset(0);
+        if (swipeOpen && !draggingRef.current) setOffset(-revealW);
+    }, [swipeOpen, revealW]);
+
+    const swipeEnabled = !selectMode && actions.length > 0;
+
+    const onPointerDown = (e: React.PointerEvent) => {
+        if (!swipeEnabled) return;
+        startX.current = e.clientX;
+        startY.current = e.clientY;
+        startOffset.current = offset;
+        axis.current = null;
+        suppressClick.current = false;
+    };
+
+    const onPointerMove = (e: React.PointerEvent) => {
+        if (!swipeEnabled) return;
+        const dx = e.clientX - startX.current;
+        const dy = e.clientY - startY.current;
+        if (axis.current === null) {
+            if (Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy)) {
+                axis.current = 'x';
+                draggingRef.current = true;
+                setDragging(true);
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
+            } else if (Math.abs(dy) > 6 && Math.abs(dy) > Math.abs(dx)) {
+                axis.current = 'y'; // gesto vertical → dejar que la lista haga scroll
+            }
+        }
+        if (axis.current === 'x') {
+            suppressClick.current = true;
+            const next = Math.min(0, Math.max(-revealW, startOffset.current + dx));
+            setOffset(next);
+        }
+    };
+
+    const endDrag = () => {
+        if (axis.current === 'x') {
+            const open = offset <= -revealW / 2;
+            setOffset(open ? -revealW : 0);
+            onSwipeOpenChange(open);
+        }
+        axis.current = null;
+        draggingRef.current = false;
+        setDragging(false);
+    };
+
+    const handleContentClick = () => {
+        if (suppressClick.current) { suppressClick.current = false; return; }
+        if (offset < -2) { setOffset(0); onSwipeOpenChange(false); return; }
+        onPress();
+    };
+
     const content = (
         <>
             <div className="min-w-0">
@@ -144,52 +256,88 @@ function ItemCard({
             <ReservationLine item={item} />
         </>
     );
+
     return (
-        <div
-            onClick={selectMode ? onToggleSelect : undefined}
-            className={`flex items-center gap-3 rounded-xl border bg-card p-3 shadow-soft transition-colors ${
-                selectMode
-                    ? `cursor-pointer ${selected ? 'border-ink ring-1 ring-ink' : 'border-hairline'}`
-                    : 'border-hairline'
-            }`}
-        >
-            {selectMode && <SelectBox checked={selected} />}
-
-            {/* Miniatura: foto del producto si existe, si no un placeholder */}
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary text-muted-foreground">
-                {item.products?.image_url
-                    ? <img src={item.products.image_url} alt="" className="h-full w-full object-cover" />
-                    : <Shirt className="h-6 w-6" />}
-            </div>
-
-            {/* Contenido: en modo selección no es clicable (el contenedor toggl­ea) */}
-            {selectMode ? (
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5 text-left">{content}</div>
-            ) : (
-                <button onClick={onPress} className="flex min-w-0 flex-1 flex-col gap-1.5 text-left active:scale-[0.99]">
-                    {content}
-                </button>
+        <div className="relative overflow-hidden rounded-xl">
+            {/* Capa de acciones (detrás; se revela al deslizar a la izquierda) */}
+            {swipeEnabled && (
+                <div className="absolute inset-y-0 right-0 flex" aria-hidden={offset === 0}>
+                    {actions.map((a) => {
+                        const Icon = a.icon;
+                        return (
+                            <button
+                                key={a.key}
+                                type="button"
+                                tabIndex={offset === 0 ? -1 : 0}
+                                onClick={() => { a.run(); setOffset(0); onSwipeOpenChange(false); }}
+                                style={{ width: ACTION_W }}
+                                className={`flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-opacity active:opacity-80 ${a.cls}`}
+                            >
+                                <Icon className="h-4 w-4" />
+                                {a.label}
+                            </button>
+                        );
+                    })}
+                </div>
             )}
 
-            {/* Precio + acciones */}
-            <div className="flex shrink-0 flex-col items-end gap-2">
-                <span className={`font-mono text-sm font-semibold ${item.status === 'vendido' ? 'text-status-available' : 'text-ink'}`}>
-                    {formatCurrency(price)}
-                </span>
-                {!selectMode && (
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={onEdit}
-                            className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
-                            aria-label="Editar"
-                        >
-                            <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button onClick={onPress} className="text-muted-foreground active:scale-95" aria-label="Ver detalle">
-                            <ChevronRight className="h-5 w-5" />
-                        </button>
-                    </div>
+            {/* Tarjeta (capa frontal deslizable) */}
+            <div
+                onClick={selectMode ? onToggleSelect : undefined}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+                style={{
+                    transform: `translateX(${selectMode ? 0 : offset}px)`,
+                    transition: dragging ? 'none' : 'transform .22s cubic-bezier(.22,1,.36,1)',
+                    touchAction: 'pan-y',
+                }}
+                className={`relative flex items-center gap-3 rounded-xl border bg-card p-3 shadow-soft ${
+                    selectMode
+                        ? `cursor-pointer ${selected ? 'border-ink ring-1 ring-ink' : 'border-hairline'}`
+                        : 'border-hairline'
+                }`}
+            >
+                {selectMode && <SelectBox checked={selected} />}
+
+                {/* Miniatura: foto del producto si existe, si no un placeholder */}
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary text-muted-foreground">
+                    {item.products?.image_url
+                        ? <img src={item.products.image_url} alt="" className="h-full w-full object-cover" draggable={false} />
+                        : <Shirt className="h-6 w-6" />}
+                </div>
+
+                {/* Contenido: en modo selección no es clicable (el contenedor toggl­ea) */}
+                {selectMode ? (
+                    <div className="flex min-w-0 flex-1 flex-col gap-1.5 text-left">{content}</div>
+                ) : (
+                    <button type="button" onClick={handleContentClick} className="flex min-w-0 flex-1 flex-col gap-1.5 text-left active:scale-[0.99]">
+                        {content}
+                    </button>
                 )}
+
+                {/* Precio + acciones */}
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                    <span className={`font-mono text-sm font-semibold ${item.status === 'vendido' ? 'text-status-available' : 'text-ink'}`}>
+                        {formatCurrency(price)}
+                    </span>
+                    {!selectMode && (
+                        <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onEdit(); }}
+                                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink active:scale-95"
+                                aria-label="Editar"
+                            >
+                                <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button type="button" onClick={handleContentClick} className="text-muted-foreground active:scale-95" aria-label="Ver detalle">
+                                <ChevronRight className="h-5 w-5" />
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -236,6 +384,8 @@ export default function InventoryPage() {
     const queryClient = useQueryClient();
     const [selectedItem, setSelectedItem] = useState<InventoryItemWithRelations | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [txInitialStatus, setTxInitialStatus] = useState<ItemStatus | undefined>(undefined);
+    const [swipedId, setSwipedId] = useState<number | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [statusFilter, setStatusFilter] = useState<ItemStatus | 'todos'>('todos');
@@ -287,10 +437,20 @@ export default function InventoryPage() {
 
     const openItem = (item: InventoryItemWithRelations) => {
         setSelectedItem(item);
+        setTxInitialStatus(undefined);
+        setIsModalOpen(true);
+    };
+
+    // Atajo de swipe: abre la transacción con un estatus objetivo ya preseleccionado.
+    const openQuickStatus = (item: InventoryItemWithRelations, status: ItemStatus) => {
+        setSwipedId(null);
+        setSelectedItem(item);
+        setTxInitialStatus(status);
         setIsModalOpen(true);
     };
 
     const openEditItem = (item: InventoryItemWithRelations) => {
+        setSwipedId(null);
         setSelectedItem(item);
         setIsEditModalOpen(true);
     };
@@ -706,9 +866,12 @@ export default function InventoryPage() {
                             item={item}
                             onPress={() => openItem(item)}
                             onEdit={() => openEditItem(item)}
+                            onQuickStatus={(status) => openQuickStatus(item, status)}
                             selectMode={selectMode}
                             selected={selectedIds.has(item.id)}
                             onToggleSelect={() => toggleSelect(item.id)}
+                            swipeOpen={swipedId === item.id}
+                            onSwipeOpenChange={(open) => setSwipedId((prev) => (open ? item.id : (prev === item.id ? null : prev)))}
                         />
                     ))}
                     {filtered.length === 0 && (
@@ -924,7 +1087,8 @@ export default function InventoryPage() {
             <TransactionModal
                 item={selectedItem}
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                initialStatus={txInitialStatus}
+                onClose={() => { setIsModalOpen(false); setTxInitialStatus(undefined); }}
             />
             <AddItemModal
                 isOpen={isAddModalOpen}

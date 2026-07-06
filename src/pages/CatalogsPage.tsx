@@ -278,7 +278,13 @@ function ProductsTab() {
         onError: (e: Error) => setDelErr(parseFKError(e.message)),
     });
 
-    const isValid = name.trim() && brandId && catId && parseFloat(price) > 0;
+    // El guardado no pasa por un <form>, así que los atributos min/required de los
+    // inputs no bloquean nada: validamos en JS (fuente de verdad).
+    const parsedPrice = parseFloat(price);
+    const parsedCost = cost.trim() ? parseFloat(cost.replace(/,/g, '.')) : null;
+    const costInvalid = parsedCost != null && (isNaN(parsedCost) || parsedCost < 0);
+    const negativeMargin = parsedCost != null && !isNaN(parsedCost) && parsedPrice > 0 && parsedCost > parsedPrice;
+    const isValid = !!name.trim() && !!brandId && !!catId && parsedPrice > 0 && !costInvalid;
 
     return (
         <div className="space-y-4">
@@ -396,14 +402,20 @@ function ProductsTab() {
                                 <Input type="number" step="0.01" min="0" value={cost} onChange={e => setCost(e.target.value)} placeholder="ej. 100.00" className="h-11 font-mono" />
                             </div>
                         </div>
-                        {price && cost && parseFloat(price) > 0 && (
+                        {price && cost && parsedPrice > 0 && !costInvalid && !negativeMargin && (
                             <p className="-mt-2 text-xs text-muted-foreground">
                                 Margen esperado:{' '}
                                 <span className="font-semibold text-status-available">
-                                    {productMargin(parseFloat(price), parseFloat(cost.replace(/,/g, '.')))?.toFixed(0)}%
+                                    {productMargin(parsedPrice, parseFloat(cost.replace(/,/g, '.')))?.toFixed(0)}%
                                 </span>{' '}
-                                · Utilidad por prenda {formatCurrency(parseFloat(price) - parseFloat(cost.replace(/,/g, '.')))}
+                                · Utilidad por prenda {formatCurrency(parsedPrice - parseFloat(cost.replace(/,/g, '.')))}
                             </p>
+                        )}
+                        {costInvalid && (
+                            <p className="-mt-2 text-xs font-medium text-status-returned">El costo no puede ser negativo.</p>
+                        )}
+                        {negativeMargin && !costInvalid && (
+                            <p className="-mt-2 text-xs font-medium text-status-returned">⚠ El costo es mayor al precio: la prenda se vendería con pérdida. Verifica los montos.</p>
                         )}
                         <div className="grid gap-1.5">
                             <Label className={capsHead}>Descripción (opcional)</Label>

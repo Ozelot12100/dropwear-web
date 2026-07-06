@@ -41,6 +41,9 @@ export default function CashCutPage() {
     const expected = opening + salesCash - outflow;
     const difference = (isNaN(counted) ? 0 : counted) - expected;
     const hasCount = countedCash.trim() !== '' && !isNaN(counted) && counted >= 0;
+    // Los montos de efectivo no pueden ser negativos (el atributo min="0" no basta
+    // porque el guardado no pasa por un <form>, así que validamos en JS).
+    const negativeInputs = opening < 0 || outflow < 0;
 
     const methodTiles = [
         { key: 'efectivo', label: 'Efectivo', value: sales?.efectivo, icon: Banknote, cls: 'text-status-available', bar: 'bg-status-available' },
@@ -139,12 +142,13 @@ export default function CashCutPage() {
                     </div>
                 )}
 
+                {negativeInputs && <p className={`mt-3 ${errorBox}`}>Los montos de efectivo no pueden ser negativos.</p>}
                 {err && <p className={`mt-3 ${errorBox}`}>{err}</p>}
                 {saved && <p className="mt-3 rounded-lg border border-status-available/30 bg-status-available/10 p-2.5 text-sm text-status-available">Corte guardado ✓</p>}
 
                 {canWrite && (
                     <div className="mt-4 flex justify-end">
-                        <Button className="gap-2" onClick={() => { setErr(null); setSaved(false); save.mutate(); }} disabled={!hasCount || save.isPending}>
+                        <Button className="gap-2" onClick={() => { setErr(null); setSaved(false); save.mutate(); }} disabled={!hasCount || negativeInputs || save.isPending}>
                             <Save className="h-4 w-4" />{save.isPending ? 'Guardando…' : 'Guardar corte'}
                         </Button>
                     </div>

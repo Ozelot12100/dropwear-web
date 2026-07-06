@@ -105,7 +105,9 @@ export default function ExpensesPage() {
     };
 
     const parsedAmount = parseFloat(amount.replace(/,/g, '.'));
-    const isValid = parsedAmount > 0 && !!category && !!spentAt;
+    // El atributo max="hoy" del input no bloquea el guardado (no hay <form>); lo validamos aquí.
+    const isFutureDate = !!spentAt && spentAt > todayISODate();
+    const isValid = parsedAmount > 0 && !!category && !!spentAt && !isFutureDate;
 
     const save = useMutation({
         mutationFn: () => {
@@ -345,6 +347,7 @@ export default function ExpensesPage() {
                             <div className="grid gap-1.5">
                                 <Label className={capsHead}>Fecha *</Label>
                                 <Input type="date" value={spentAt} onChange={(e) => setSpentAt(e.target.value)} max={todayISODate()} className="h-11" />
+                                {isFutureDate && <p className="text-xs font-medium text-status-returned">No puede ser una fecha futura.</p>}
                             </div>
                         </div>
                         <div className="grid gap-1.5">

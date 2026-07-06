@@ -312,7 +312,7 @@ export default function StaffPage() {
                                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="full_name" className={capsLabel}>Nombre Completo</Label>
-                                        <Input id="full_name" name="full_name" placeholder="Ej. Juan Pérez (mín. 3 caracteres)" required minLength={3} value={formData.full_name} onChange={handleChange} className="h-11" />
+                                        <Input id="full_name" name="full_name" placeholder="Ej. Juan Pérez (mín. 3 caracteres)" required minLength={3} maxLength={80} value={formData.full_name} onChange={handleChange} className="h-11" />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="email" className={capsLabel}>Correo Electrónico</Label>

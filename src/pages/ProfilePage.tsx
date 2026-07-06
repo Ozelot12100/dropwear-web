@@ -128,6 +128,7 @@ export default function ProfilePage() {
                                             className="h-10 max-w-[320px]"
                                             disabled={isSaving}
                                             autoFocus
+                                            maxLength={80}
                                             placeholder="Tu nombre completo"
                                         />
                                         <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleSaveName} disabled={isSaving}>

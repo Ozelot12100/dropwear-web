@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { inventoryService } from '../../services/inventory';
@@ -37,13 +37,21 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
 const formatCurrency = (amount: number | null | undefined) =>
     amount == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 
+// Fecha de hoy YYYY-MM-DD (local) para topes de fechas.
+const todayISODate = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 interface TransactionModalProps {
     item: InventoryItemWithRelations | null;
     isOpen: boolean;
     onClose: () => void;
+    // Estatus preseleccionado al abrir (usado por los atajos de swipe en el inventario).
+    initialStatus?: ItemStatus;
 }
 
-export function TransactionModal({ item, isOpen, onClose }: TransactionModalProps) {
+export function TransactionModal({ item, isOpen, onClose, initialStatus }: TransactionModalProps) {
     const { user } = useAuth();
     const queryClient = useQueryClient();
 
@@ -87,6 +95,15 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
         }
     };
 
+    // Atajo de swipe: al abrir con un estatus objetivo, lo preselecciona (si es
+    // distinto al actual) para saltar directo a la acción. Se ejecuta solo al abrir.
+    useEffect(() => {
+        if (isOpen && initialStatus && item && initialStatus !== item.status) {
+            handleSelectStatus(initialStatus);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, initialStatus, item?.id]);
+
     const mutation = useMutation({
         mutationFn: async () => {
             if (!user) throw new Error('Usuario no autenticado');
@@ -120,10 +137,17 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                 if (!reservedUntil) {
                     throw new Error('Selecciona la fecha de vencimiento del apartado.');
                 }
+                if (reservedUntil < todayISODate()) {
+                    throw new Error('La fecha de vencimiento no puede ser anterior a hoy.');
+                }
                 if (reservedDeposit.trim()) {
                     parsedDeposit = parseFloat(reservedDeposit.replace(/,/g, '.'));
                     if (isNaN(parsedDeposit) || parsedDeposit < 0) {
                         throw new Error('El anticipo debe ser un monto válido (0 o mayor).');
+                    }
+                    const basePrice = item?.products?.base_price;
+                    if (basePrice != null && parsedDeposit > basePrice) {
+                        throw new Error(`El anticipo (${formatCurrency(parsedDeposit)}) no puede ser mayor al precio de la prenda (${formatCurrency(basePrice)}).`);
                     }
                 }
             }
@@ -266,6 +290,7 @@ export function TransactionModal({ item, isOpen, onClose }: TransactionModalProp
                                             value={reservedUntil}
                                             onChange={(e) => setReservedUntil(e.target.value)}
                                             className="bg-card"
+                                            min={todayISODate()}
                                             required
                                         />
                                     </div>
