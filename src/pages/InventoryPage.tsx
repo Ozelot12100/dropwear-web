@@ -4,8 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { inventoryService } from '../services/inventory';
 import { useAuth } from '../hooks';
-import { STATUS_CHANGE_ROLES, ITEM_EDIT_ROLES, can } from '../lib/permissions';
-import type { InventoryItemWithRelations, ItemStatus, PaymentMethod } from '../types';
+import { ITEM_EDIT_ROLES, ADD_ITEM_ROLES, BULK_STATUS_ROLES, can, isStatusTransitionAllowed } from '../lib/permissions';
+import type { InventoryItemWithRelations, ItemStatus, PaymentMethod, UserRole } from '../types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Skeleton } from '../components/ui/skeleton';
@@ -117,46 +117,50 @@ function SelectBox({ checked }: { checked: boolean }) {
 }
 
 // ── Acciones rápidas de swipe (contextuales por estado) ───────────────────────
-// `kind` decide qué capacidad de rol se requiere: 'status' (cambiar estado) o
-// 'edit' (corregir detalles). Se filtran según el rol del usuario.
-type CardAction = { key: string; label: string; icon: LucideIcon; cls: string; kind: 'status' | 'edit'; run: () => void };
+// Acción 'edit' (corregir detalles) o 'status' con destino `target`. Se filtran
+// según el rol: 'edit' requiere permiso de edición; 'status' requiere que la
+// transición estado_actual → target esté permitida (espeja el backend).
+type CardAction =
+    | { key: string; label: string; icon: LucideIcon; cls: string; kind: 'edit'; run: () => void }
+    | { key: string; label: string; icon: LucideIcon; cls: string; kind: 'status'; target: ItemStatus; run: () => void };
 
 function quickActionsFor(
     status: string,
     onQuickStatus: (s: ItemStatus) => void,
     onEdit: () => void,
-    caps: { status: boolean; edit: boolean },
+    role: UserRole | null | undefined,
+    canEdit: boolean,
 ): CardAction[] {
     let all: CardAction[];
     switch (status) {
         case 'disponible':
             all = [
-                { key: 'apartar', label: 'Apartar', icon: Bookmark, cls: 'bg-status-reserved text-white', kind: 'status', run: () => onQuickStatus('apartado') },
-                { key: 'vender', label: 'Vender', icon: Banknote, cls: 'bg-status-available text-white', kind: 'status', run: () => onQuickStatus('vendido') },
+                { key: 'apartar', label: 'Apartar', icon: Bookmark, cls: 'bg-status-reserved text-white', kind: 'status', target: 'apartado', run: () => onQuickStatus('apartado') },
+                { key: 'vender', label: 'Vender', icon: Banknote, cls: 'bg-status-available text-white', kind: 'status', target: 'vendido', run: () => onQuickStatus('vendido') },
             ];
             break;
         case 'apartado':
             all = [
-                { key: 'liberar', label: 'Liberar', icon: RotateCcw, cls: 'bg-ink text-white', kind: 'status', run: () => onQuickStatus('disponible') },
-                { key: 'vender', label: 'Vender', icon: Banknote, cls: 'bg-status-available text-white', kind: 'status', run: () => onQuickStatus('vendido') },
+                { key: 'liberar', label: 'Liberar', icon: RotateCcw, cls: 'bg-ink text-white', kind: 'status', target: 'disponible', run: () => onQuickStatus('disponible') },
+                { key: 'vender', label: 'Vender', icon: Banknote, cls: 'bg-status-available text-white', kind: 'status', target: 'vendido', run: () => onQuickStatus('vendido') },
             ];
             break;
         case 'vendido':
             all = [
                 { key: 'editar', label: 'Editar', icon: Edit2, cls: 'bg-secondary text-ink', kind: 'edit', run: onEdit },
-                { key: 'devolver', label: 'Devolver', icon: RotateCcw, cls: 'bg-status-returned text-white', kind: 'status', run: () => onQuickStatus('devuelto') },
+                { key: 'devolver', label: 'Devolver', icon: RotateCcw, cls: 'bg-status-returned text-white', kind: 'status', target: 'devuelto', run: () => onQuickStatus('devuelto') },
             ];
             break;
         case 'devuelto':
             all = [
                 { key: 'editar', label: 'Editar', icon: Edit2, cls: 'bg-secondary text-ink', kind: 'edit', run: onEdit },
-                { key: 'stock', label: 'A stock', icon: Check, cls: 'bg-status-available text-white', kind: 'status', run: () => onQuickStatus('disponible') },
+                { key: 'stock', label: 'A stock', icon: Check, cls: 'bg-status-available text-white', kind: 'status', target: 'disponible', run: () => onQuickStatus('disponible') },
             ];
             break;
         default:
             all = [];
     }
-    return all.filter((a) => (a.kind === 'edit' ? caps.edit : caps.status));
+    return all.filter((a) => (a.kind === 'edit' ? canEdit : isStatusTransitionAllowed(role, status, a.target)));
 }
 
 const ACTION_W = 76; // ancho por botón revelado (px)
@@ -167,7 +171,7 @@ function ItemCard({
     onPress,
     onEdit,
     onQuickStatus,
-    canChangeStatus,
+    role,
     canEditDetails,
     selectMode,
     selected,
@@ -179,7 +183,7 @@ function ItemCard({
     onPress: () => void;
     onEdit: () => void;
     onQuickStatus: (s: ItemStatus) => void;
-    canChangeStatus: boolean;
+    role: UserRole | null | undefined;
     canEditDetails: boolean;
     selectMode: boolean;
     selected: boolean;
@@ -191,7 +195,7 @@ function ItemCard({
 
     const actions = selectMode
         ? []
-        : quickActionsFor(item.status, onQuickStatus, onEdit, { status: canChangeStatus, edit: canEditDetails });
+        : quickActionsFor(item.status, onQuickStatus, onEdit, role, canEditDetails);
     const revealW = actions.length * ACTION_W;
 
     // ── Mecánica del swipe (pointer events + touch-action: pan-y) ──────────────
@@ -402,9 +406,10 @@ function TableSkeletons() {
 export default function InventoryPage() {
     const queryClient = useQueryClient();
     const { profile } = useAuth();
-    // Capacidades de rol (coinciden con el RLS; hoy ambos son superadmin ⇒ todo activo).
-    const canChangeStatus = can(profile?.role, STATUS_CHANGE_ROLES);
-    const canEditDetails = can(profile?.role, ITEM_EDIT_ROLES);
+    // Capacidades de rol (coinciden con el backend; hoy ambos son superadmin ⇒ todo activo).
+    const role = profile?.role;
+    const canEditDetails = can(role, ITEM_EDIT_ROLES);
+    const canBulk = can(role, BULK_STATUS_ROLES);
     const [selectedItem, setSelectedItem] = useState<InventoryItemWithRelations | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [txInitialStatus, setTxInitialStatus] = useState<ItemStatus | undefined>(undefined);
@@ -673,7 +678,7 @@ export default function InventoryPage() {
                                 <Download className="h-4 w-4" />
                                 <span className="hidden sm:inline">Exportar</span>
                             </button>
-                            <RoleGuard allowed={['socio', 'superadmin']}>
+                            <RoleGuard allowed={ADD_ITEM_ROLES}>
                                 <Button onClick={() => setIsAddModalOpen(true)} className="gap-1.5">
                                     <Plus className="h-4 w-4" />
                                     <span className="hidden sm:inline">Agregar Prenda</span>
@@ -683,8 +688,8 @@ export default function InventoryPage() {
                         </>
                     )}
                     {/* Modo selección: aplicar acciones (venta/regreso) a varias prendas a la
-                        vez. Solo para roles que pueden cambiar estado (no 'contador'). */}
-                    {canChangeStatus && (
+                        vez. Solo roles con cambios de estado arbitrarios (no repartidor/contador). */}
+                    {canBulk && (
                         <button
                             type="button"
                             onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
@@ -893,7 +898,7 @@ export default function InventoryPage() {
                             onPress={() => openItem(item)}
                             onEdit={() => openEditItem(item)}
                             onQuickStatus={(status) => openQuickStatus(item, status)}
-                            canChangeStatus={canChangeStatus}
+                            role={role}
                             canEditDetails={canEditDetails}
                             selectMode={selectMode}
                             selected={selectedIds.has(item.id)}
@@ -1116,7 +1121,7 @@ export default function InventoryPage() {
                 item={selectedItem}
                 isOpen={isModalOpen}
                 initialStatus={txInitialStatus}
-                canWrite={canChangeStatus}
+                role={role}
                 onClose={() => { setIsModalOpen(false); setTxInitialStatus(undefined); }}
             />
             <AddItemModal

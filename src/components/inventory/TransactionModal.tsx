@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { inventoryService } from '../../services/inventory';
 import { useAuth } from '../../hooks';
-import type { ItemStatus, PaymentMethod, InventoryItemWithRelations } from '../../types';
+import { isStatusTransitionAllowed, canChangeStatusOf } from '../../lib/permissions';
+import type { ItemStatus, PaymentMethod, InventoryItemWithRelations, UserRole } from '../../types';
 import {
     Dialog,
     DialogContent,
@@ -49,11 +50,11 @@ interface TransactionModalProps {
     onClose: () => void;
     // Estatus preseleccionado al abrir (usado por los atajos de swipe en el inventario).
     initialStatus?: ItemStatus;
-    // Si el rol no puede cambiar estado (p. ej. 'contador'), el modal es de solo lectura.
-    canWrite?: boolean;
+    // Rol del usuario: decide qué transiciones se habilitan (espeja el backend).
+    role?: UserRole | null;
 }
 
-export function TransactionModal({ item, isOpen, onClose, initialStatus, canWrite = true }: TransactionModalProps) {
+export function TransactionModal({ item, isOpen, onClose, initialStatus, role }: TransactionModalProps) {
     const { user } = useAuth();
     const queryClient = useQueryClient();
 
@@ -194,6 +195,10 @@ export function TransactionModal({ item, isOpen, onClose, initialStatus, canWrit
     if (!item) return null;
 
     const currentMeta = STATUS_META[item.status];
+    // Solo lectura si el rol no puede hacer NINGUNA transición desde el estado actual
+    // (p. ej. 'contador' siempre; 'repartidor' salvo en un apartado).
+    const readOnly = !canChangeStatusOf(role, item.status);
+    const selectedAllowed = !!selectedStatus && isStatusTransitionAllowed(role, item.status, selectedStatus);
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -209,9 +214,9 @@ export function TransactionModal({ item, isOpen, onClose, initialStatus, canWrit
                     </DialogHeader>
 
                     <div className="grid gap-5 py-4">
-                        {!canWrite && (
+                        {readOnly && (
                             <div className="rounded-lg border border-hairline bg-secondary p-3 text-sm text-muted-foreground">
-                                Tu rol puede <span className="font-medium text-ink">consultar</span> esta prenda, pero no modificar su estatus.
+                                Tu rol puede <span className="font-medium text-ink">consultar</span> esta prenda, pero no cambiar su estatus.
                             </div>
                         )}
 
@@ -242,7 +247,7 @@ export function TransactionModal({ item, isOpen, onClose, initialStatus, canWrit
                                         <button
                                             key={value}
                                             type="button"
-                                            disabled={isCurrent || !canWrite}
+                                            disabled={isCurrent || !isStatusTransitionAllowed(role, item.status, value)}
                                             onClick={() => handleSelectStatus(value)}
                                             className={`flex items-center gap-2.5 rounded-xl border p-3.5 text-left transition-all ${isSelected
                                                 ? 'border-ink bg-secondary ring-1 ring-ink'
@@ -398,7 +403,7 @@ export function TransactionModal({ item, isOpen, onClose, initialStatus, canWrit
                         >
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={mutation.isPending || !selectedStatus || !canWrite}>
+                        <Button type="submit" disabled={mutation.isPending || !selectedAllowed}>
                             {mutation.isPending ? 'Procesando...' : 'Confirmar Cambios'}
                         </Button>
                     </DialogFooter>
