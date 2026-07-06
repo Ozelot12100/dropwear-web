@@ -1,6 +1,6 @@
 # Plan de migración de UI — DropWear → diseño Stitch
 
-> ✅ **COMPLETADO (jul-2026) y en producción** (`dropwear-web.vercel.app`). Todas las pantallas (Login, Dashboard, Inventario, Catálogos, Bitácora, Personal, Perfil), la navegación y los modales ya usan el sistema Stitch. Este documento se conserva como registro del plan que se siguió. Los tokens viven en `src/index.css` + `tailwind.config.js`.
+> ✅ **COMPLETADO (jul-2026) y en producción** (`dropwear-web.vercel.app`). Todas las pantallas (Login, Dashboard, Inventario, Catálogos, Bitácora, Gastos, Personal, Perfil), la navegación y los modales ya usan el sistema Stitch. Este documento se conserva como registro del plan que se siguió. Los tokens viven en `src/index.css` + `tailwind.config.js`.
 
 Plan paso a paso para migrar la interfaz al nuevo sistema de diseño de Stitch ("Herramienta operativa premium con alma de marca de ropa": base hueso/tinta, acento rojo del logo, Space Grotesk / Inter / JetBrains Mono). Referencia de diseño: el paquete de Stitch (`DESIGN.md` + pantallas) y `rediseno-ui-stitch-prompt.md`.
 

@@ -12,8 +12,8 @@ Este documento detalla las funcionalidades pendientes para mejorar la experienci
 - **Concepto:** Integrar la cámara del celular en la vista de inventario.
 - **Beneficio:** Agiliza masivamente la búsqueda de prendas, el ingreso de nuevo stock o la marca rápida de un artículo como "Vendido" / "Apartado".
 
-### 1.3 Perfeccionamiento de Formularios Táctiles
-- **Pendiente:** Usar `inputMode="decimal"` o `type="number"` en los campos de precio y costo (despliega teclado numérico nativo al vender).
+### 1.3 Perfeccionamiento de Formularios Táctiles — 🟡 Parcial
+- **Hecho:** teclado numérico nativo (`type="number"` / `inputMode="decimal"`) en todos los campos de dinero: venta (`TransactionModal`), precio y costo (`CatalogsPage`), remate en lote (`InventoryPage`) y gastos (`ExpensesPage`).
 - **Pendiente:** Integrar gestos de deslizar (*Swipe-to-action*) en las tarjetas de inventario para accesos directos de edición o cobro.
 
 ### 1.4 Pull-to-Refresh

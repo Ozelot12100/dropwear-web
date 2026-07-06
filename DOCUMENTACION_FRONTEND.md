@@ -39,17 +39,20 @@ src/
 ├── assets/          # Imágenes estáticas y SVGs base.
 ├── components/      
 │   ├── auth/        # Modales relacionadas con autenticación (PasswordChangeModal).
-│   ├── inventory/   # Modales de operación de inventario (AddItemModal, TransactionModal).
-│   ├── layout/      # Componentes estructurales (Navbar, PrivateRoute).
+│   ├── dashboard/   # Panel de analítica del negocio (BusinessAnalytics).
+│   ├── inventory/   # Modales de inventario (AddItemModal, EditItemModal, TransactionModal).
+│   ├── layout/      # Componentes estructurales (Navbar, BottomNav, PrivateRoute, RoleGuard).
 │   └── ui/          # Componentes base generados por shadcn/ui (Button, Input, Dialog…).
 ├── context/         
 │   └── AuthContext.tsx # Contexto maestro (Autenticación y Perfil de Usuario/Rol).
 ├── hooks/           # Hooks personalizados reusables (ej. useAuth).
 ├── lib/             
 │   ├── supabase.ts  # Inicialización del cliente Supabase fuertemente tipado.
+│   ├── csv.ts       # Exportación a CSV (BOM UTF-8, sin dependencias).
+│   ├── monitoring.ts# Punto único de reporte de errores (Sentry-ready).
 │   └── utils.ts     # Helpers generales (función `cn` para Tailwind).
 ├── pages/           # Vistas enrutables (Login, DashboardPage, InventoryPage, CatalogsPage, LogsPage, ExpensesPage, StaffPage, ProfilePage).
-├── services/        # Lógica exclusiva de acceso a datos (inventory.ts, users.ts, catalogs.ts).
+├── services/        # Acceso a datos (inventory, catalogs, dashboard, analytics, logs, expenses, users).
 └── types/           
     ├── database.types.ts  # Tipos autogenerados, reflejo exacto del esquema de PostgreSQL.
     └── index.ts     # Interfaces derivadas y consolidación de tipos limpios.
@@ -97,7 +100,7 @@ src/
 - **Banear / Desbloquear:** Botón por fila que invoca `toggle-user-status` Edge Function. Muestra badge rojo `BLOQUEADO` en colaboradores suspendidos. Protegido: no puede banearte a ti mismo.
 - **Cambiar mi propia contraseña:** Disponible desde el menú desplegable del Navbar (`PasswordChangeModal.tsx`). Usa la Edge Function `reset-password` en lugar del cliente JS (workaround a bug de Supabase).
 
-### 4.7 Validaciones de Formularios
+### 4.8 Validaciones de Formularios
 Todas las modales aplican validación en **dos capas**: atributos HTML (UX inmediata) + lógica JavaScript (integridad antes de envío). Resumen:
 
 | Modal | Validaciones clave |
@@ -108,18 +111,19 @@ Todas las modales aplican validación en **dos capas**: atributos HTML (UX inmed
 | Agregar Prenda | Producto requerido · Talla requerida · Color solo letras mín. 3 chars (regex con acentos/ñ) · Contador 0/30 |
 | Actualizar Artículo | Estatus diferente al actual (opciones inhabilitadas en select) · Precio > 0 si vendido · Notas máx. 200 chars con contador |
 
-### 4.8 Comportamiento y Bugs Específicos Móviles (Mobile Caveats)
+### 4.9 Comportamiento y Bugs Específicos Móviles (Mobile Caveats)
 La experiencia puramente móvil y PWA acarrea limitaciones de navegador que hemos mitigado:
 
 1. **Autocorrección Móvil:** Los teclados de iOS/Android insertan un espacio final en los campos `.email`. Fue mitigado con auto-recortes (`.trim()`) en el payload de acceso.
 2. **Supabase "Web Lock Deadlock":** Supabase usa `navigator.locks` subyacentes. En pestañas en modo _Incógnito_ o en Safari, si se recarga la pestaña (`window.location.href`) durante validación asíncrona, el navegador nunca suelta el lock internamente, bloqueando el estado y congelando el login. Se resolvió delegando las transiciones suavemente con React Router y desusando redrecciones forzadas (hard-redirects) tras `signInWithPassword`.
 3. **Pausado de Eventos (Google App WebView):** Al estar la PWA o visor de web dentro de la aplicación de Google, el sistema silencia los eventos en background (`onAuthStateChange` de Supabase nunca se dispara). Se solucionó inyectando **un hard navigate** programado con React Router con `500ms` de retraso como plan alternativo de seguridad tras ganar la sesión.
 
-### 4.9 Features de negocio y mejoras recientes ✅
+### 4.10 Features de negocio y mejoras recientes ✅
 - **Fotos de producto:** subida a Storage `product-images` desde el modal de Catálogos; miniatura en Catálogos e Inventario (móvil).
 - **Apartados con cliente:** al apartar se registra cliente, teléfono, vencimiento y anticipo (RPC `change_item_status`). Inventario muestra "🔖 cliente · vence …" y **resalta los vencidos**; el Dashboard marca cuántos apartados están vencidos. El histórico queda embebido en la nota del log (Bitácora).
 - **Costo y margen:** el modal de Catálogos captura el `cost` por producto; la tabla muestra Costo y Margen esperado. El Dashboard muestra **"Utilidad Hoy"** (ingresos − costo) como sub-nota de Ingresos, **solo a roles financieros** (superadmin/socio/contador).
-- **Dashboard en tiempo real (M4):** dejó el polling de 30 s; ahora se suscribe a `inventory_items` e invalida `dashboardStats`/`recentActivity` en vivo.
+- **Dashboard en tiempo real (M4):** dejó el polling de 30 s; ahora se suscribe a `inventory_items` e invalida `dashboardStats`/`recentActivity`/`businessAnalytics` en vivo.
+- **Panel de Analítica en el Dashboard:** sección **"Análisis del Negocio"** (`components/dashboard/BusinessAnalytics.tsx`, solo roles financieros) con gráficas propias **sin dependencias** (CSS): tendencia de **6 meses** (ingresos + utilidad neta por mes) y **top 5 productos** del mes. Servicio `analytics.ts`; se refresca en tiempo real con las ventas. (Roadmap 2.2 ✅)
 - **Vistas móviles con tarjetas:** además de Inventario, **Bitácora** y **Personal** tienen vista de tarjetas en móvil (tabla solo en escritorio).
 - **Revalidación de perfil (H8):** `AuthContext` re-verifica el perfil al recuperar el foco de la pestaña; si un admin bloquea la cuenta (`is_active=false`) cierra la sesión sin recargar.
 - **Accesibilidad (L4):** `lang="es"`, roles ARIA en pestañas, foco visible.
@@ -134,6 +138,8 @@ La experiencia puramente móvil y PWA acarrea limitaciones de navegador que hemo
 | `catalogs.ts` | `getProducts/Brands/Categories()`, CRUD de cada uno, `uploadProductImage()` |
 | `dashboard.ts` | `getDashboardStats()` (disponibles, apartados, vencidos, ventas/ingresos de hoy), `getRecentActivity()` |
 | `logs.ts` | `getLogs()` (bitácora con relaciones) |
+| `expenses.ts` | `getExpenses()`, `getMonthlyFinancials()` (ingresos − COGS − gastos), `createExpense/updateExpense/deleteExpense()` |
+| `analytics.ts` | `getBusinessAnalytics()` (tendencia 6 meses + top productos, para el panel del Dashboard) |
 | `users.ts` | `getUsers()`, `createUser()`, `resetPassword()`, `toggleUserStatus()`, `updateUserRole()`, `updateProfileName()` |
 
 Los métodos de escritura de inventario usan **RPCs atómicas** de Postgres; los que requieren privilegios elevados invocan **Supabase Edge Functions** (nunca exponen `SERVICE_ROLE_KEY` en el cliente).
@@ -149,7 +155,7 @@ Los métodos de escritura de inventario usan **RPCs atómicas** de Postgres; los
 - **Estado:** Se mejoró `InventoryPage` incorporando el componente `<ItemCard />` que renderiza las prendas en tarjetas amigables para dispositivos móviles, dejando la `<Table />` estándar solo para desktop.
 
 ### 6.3 Dashboard / Resumen Ejecutivo — ✅ Implementado
-- **Estado:** Se creó la página `DashboardPage.tsx` accesible en `/` que consume el nuevo servicio `dashboard.ts` para presentar métricas clave (disponibles, apartados, ventas de hoy, ingresos) y las últimas actividades (logs) de manera gráfica.
+- **Estado:** Se creó la página `DashboardPage.tsx` accesible en `/` que consume el servicio `dashboard.ts` para presentar métricas clave (disponibles, apartados, vencidos, ventas/ingresos de hoy) y las últimas actividades (logs). Para **roles financieros** incluye además el panel **"Análisis del Negocio"** (`BusinessAnalytics`): tendencia de 6 meses y top de productos (ver §4.10).
 
 ### 6.4 Página de Perfil de Usuario — ✅ Implementado
 - **Estado:** Se desarrolló la ruta `/profile` con `ProfilePage.tsx` para permitir a los usuarios visualizar su rol, email y gestionar su contraseña en un apartado dedicado.
