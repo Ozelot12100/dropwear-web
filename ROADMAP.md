@@ -35,9 +35,11 @@ Este documento detalla las funcionalidades pendientes para mejorar la experienci
 - **Estado:** botón **"Exportar"** en **Inventario** y **Bitácora**. Genera un CSV (con BOM UTF-8, abre bien en Excel) de las filas **según los filtros activos**, sin dependencias externas (`src/lib/csv.ts`). La Bitácora incluye el precio de venta solo para roles financieros.
 - **Beneficio:** contabilidad externa, reportes a socios/auditores y respaldos.
 
-### 2.4 Control de Gastos (Egresos Operativos) 📉
-- **Concepto:** Una pequeña sección para registrar gastos hormiga o fijos (paquetería, limpieza, servicios, nómina).
-- **Beneficio:** Al cruzar los *Ingresos (Ventas)* menos el *Costo de las Prendas* y los *Gastos*, podrás ver la **Utilidad Neta Real** del negocio.
+### 2.4 Control de Gastos (Egresos Operativos) 📉 — ✅ Implementado
+- **Estado:** módulo **Gastos** (`/expenses`) con tabla `public.expenses` (monto, categoría, descripción, fecha, autor). Registro/edición/borrado de gastos por categoría (paquetería, servicios, nómina, renta, limpieza, marketing, comisiones, otro) y **resumen mensual** con navegación por mes: **Ingresos − Costo de venta − Gastos = Utilidad Neta**, más margen neto %. Incluye exportación CSV.
+- **Seguridad:** dato financiero sensible → RLS restringe la **lectura** a `superadmin/socio/contador` y la **escritura** a `socio/superadmin`; el personal de piso (vendedor/repartidor) **no ve los gastos**. El autor se sella en el servidor (trigger anti-spoofing). Validado E2E en producción (lectura/escritura por rol + sellado de autor).
+- **Nota contable:** no se incluye "compra de mercancía" como gasto: su costo ya se captura en `products.cost` (COGS) y contarlo aquí lo restaría dos veces.
+- **Beneficio:** cruzar *Ingresos − Costo de prendas − Gastos* da la **Utilidad Neta Real** del negocio.
 
 ### 2.5 Acciones Masivas (Batch Operations) 📦
 - **Concepto:** `Checkboxes` en la tabla de PC para seleccionar de 2 a 50 artículos a la vez.

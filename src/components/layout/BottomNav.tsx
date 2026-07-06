@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks';
-import { LayoutDashboard, BookOpen, ClipboardList, Package, Users } from 'lucide-react';
+import { LayoutDashboard, BookOpen, ClipboardList, Package, Users, Wallet } from 'lucide-react';
 
 const TABS = [
     {
@@ -26,6 +26,12 @@ const TABS = [
         label: 'Bitácora',
         icon: ClipboardList,
         roles: null,
+    },
+    {
+        to: '/expenses',
+        label: 'Gastos',
+        icon: Wallet,
+        roles: ['superadmin', 'socio', 'contador'] as const,
     },
     {
         to: '/staff',

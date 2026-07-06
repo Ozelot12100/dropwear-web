@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks';
 import { RoleGuard } from './RoleGuard';
-import { LogOut, LayoutDashboard, BookOpen, ClipboardList, Users, Package } from 'lucide-react';
+import { LogOut, LayoutDashboard, BookOpen, ClipboardList, Users, Package, Wallet } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import {
     DropdownMenu,
@@ -63,6 +63,14 @@ export function Navbar() {
                             <ClipboardList className="h-4 w-4" />
                             Bitácora
                         </NavLink>
+
+                        {/* Gastos: solo roles financieros */}
+                        <RoleGuard allowed={['superadmin', 'socio', 'contador']}>
+                            <NavLink to="/expenses" className={navLinkClass}>
+                                <Wallet className="h-4 w-4" />
+                                Gastos
+                            </NavLink>
+                        </RoleGuard>
 
                         {/* Staff: solo superadmin */}
                         <RoleGuard allowed={['superadmin']}>

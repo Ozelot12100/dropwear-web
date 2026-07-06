@@ -48,7 +48,7 @@ src/
 ├── lib/             
 │   ├── supabase.ts  # Inicialización del cliente Supabase fuertemente tipado.
 │   └── utils.ts     # Helpers generales (función `cn` para Tailwind).
-├── pages/           # Vistas enrutables (Login, InventoryPage, CatalogsPage, LogsPage, StaffPage).
+├── pages/           # Vistas enrutables (Login, DashboardPage, InventoryPage, CatalogsPage, LogsPage, ExpensesPage, StaffPage, ProfilePage).
 ├── services/        # Lógica exclusiva de acceso a datos (inventory.ts, users.ts, catalogs.ts).
 └── types/           
     ├── database.types.ts  # Tipos autogenerados, reflejo exacto del esquema de PostgreSQL.
@@ -83,7 +83,13 @@ src/
 - `LogsPage.tsx` que consume `inventory_logs` mostrando la trazabilidad de cada movimiento (quién, cuándo, qué prenda, qué acción).
 - **Filtros Avanzados (Sheet UI):** Menú lateral para filtrar la bitácora por un **Operador** en específico (generado dinámicamente según los usuarios que hayan registrado operaciones) y por **Rango de Tiempo** rápido (Hoy, Ayer, Esta Semana, Este Mes) utilizando `date-fns`.
 
-### 4.6 Gestión de Personal (StaffPage) — Superadmin Only
+### 4.6 Control de Gastos (ExpensesPage) — Roles Financieros
+- `ExpensesPage.tsx` (ruta `/expenses`, protegida por `RoleGuard` a `superadmin`/`socio`/`contador`) para registrar egresos operativos y ver la **utilidad neta real**.
+- **Resumen mensual** con navegación por mes (‹ ›): 4 tiles KPI — Ingresos, Costo de venta, Gastos y **Utilidad Neta** (destacada, con margen neto %). Fórmula: `ingresos − COGS − gastos`; los ingresos/COGS salen de la bitácora de ventas (`inventory_logs`) y el costo actual del producto, vía `expenseService.getMonthlyFinancials`.
+- **CRUD de gastos** (registrar/editar/borrar solo `socio`/`superadmin`; `contador` lo ve en solo lectura): monto con teclado numérico (`inputMode="decimal"`), categoría, fecha y descripción. Lista en **tarjetas** (móvil) y **tabla** (escritorio) con pill de categoría y autor.
+- **Exportar CSV** del mes (respeta el mes en vista), vía `src/lib/csv.ts`.
+
+### 4.7 Gestión de Personal (StaffPage) — Superadmin Only
 - Tabla de colaboradores con nombre, rol, fecha de ingreso e ID parcial.
 - **Nuevo Colaborador:** Formulario con validación completa (nombre mín. 3 chars, email regex, contraseña con campo de confirmación). Éxito con feedback inline verde. Se resetea al cerrar.
 - **Restablecer Contraseña:** Modal para cambiar la clave de cualquier colaborador. Incluye campo de confirmación de contraseña. Éxito con feedback inline (reemplazó `alert()`).

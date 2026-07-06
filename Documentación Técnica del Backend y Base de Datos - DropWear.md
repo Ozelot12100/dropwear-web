@@ -125,6 +125,7 @@ INSERT INTO brands (name) VALUES ('Jordan'), ('Adidas'), ('Nike'), ('Puma');
   * `add_inventory_item(p_product_id, p_size, p_color)` — alta física (item + log 'creacion', status inicial 'disponible').
   * `update_item_details(p_item_id, p_product_id, p_size, p_color)` — corrección de detalles físicos + log.
 * **Storage — bucket `product-images`:** público (lectura sin sesión), límite 5 MB, solo jpg/png/webp. Políticas RLS sobre `storage.objects`: **subir/actualizar/borrar** solo `socio`/`superadmin` (vía `current_user_role()`); leer, público. El frontend guarda la URL pública en `products.image_url`.
+* **Tabla nueva `expenses` (Control de Gastos / Egresos):** `amount NUMERIC(10,2) > 0`, `category TEXT` (CHECK sobre un set fijo: `paqueteria`, `servicios`, `nomina`, `renta`, `limpieza`, `marketing`, `comisiones`, `otro`), `description TEXT`, `spent_at DATE` (default hoy), `created_by UUID → user_profiles(id)` (permite incrustar el autor vía PostgREST, igual que `inventory_logs.partner_id`), `created_at`. Índice `idx_expenses_spent_at` para los filtros por mes. Es la base de la **Utilidad Neta** (`ingresos − COGS − gastos`); el COGS ya vive en `products.cost`, por eso **no** hay categoría "mercancía" (evita doble conteo). El autor se sella en el servidor con el trigger `stamp_expense_actor` (anti-spoofing). Ver sus políticas RLS abajo.
 
 ## **6\. Políticas de Seguridad (RLS) y Replicación Realtime**
 
@@ -135,6 +136,7 @@ INSERT INTO brands (name) VALUES ('Jordan'), ('Adidas'), ('Nike'), ('Puma');
   * `categories` / `brands` / `products`: escribir solo `socio`/`superadmin`.
   * `inventory_items`: **insertar** `vendedor`+; **actualizar** `vendedor`/`repartidor`/`socio`/`superadmin`; **borrar** solo `socio`/`superadmin`.
   * `inventory_logs`: **inmutable** — solo `INSERT` (atribuido a uno mismo, `partner_id = auth.uid()`); sin `UPDATE`/`DELETE`, nadie puede editar ni borrar el historial.
+  * `expenses`: dato **financiero sensible** → **leer** solo `contador`/`socio`/`superadmin`; **insertar/actualizar/borrar** solo `socio`/`superadmin`. A diferencia del resto del inventario, la lectura **no** es abierta: el personal de piso (`vendedor`/`repartidor`) no ve los gastos. El actor se sella con `stamp_expense_actor`. Validado E2E en producción (rol financiero ve/escribe; no financiero recibe 0 filas al leer y RLS 42501 al insertar).
   * `user_profiles`: no escribible desde el cliente; toda administración de usuarios pasa por Edge Functions (ver §8).
 * **Sellado de actor:** triggers `stamp_log_actor` y `stamp_item_actor` ignoran cualquier `partner_id`/`updated_by` que envíe el cliente y lo fijan a la identidad real del JWT (anti-spoofing).
 * **Nota pendiente (M2):** `price_sold` sigue siendo legible por todos los roles a nivel de API (la restricción financiera hoy es solo en la UI). Endurecerlo a nivel de columna queda pendiente para cuando existan empleados de piso.

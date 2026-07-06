@@ -11,6 +11,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const InventoryPage = lazy(() => import('./pages/InventoryPage'));
 const CatalogsPage = lazy(() => import('./pages/CatalogsPage'));
 const LogsPage = lazy(() => import('./pages/LogsPage'));
+const ExpensesPage = lazy(() => import('./pages/ExpensesPage'));
 const StaffPage = lazy(() => import('./pages/StaffPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
@@ -54,6 +55,16 @@ export default function App() {
 
                     {/* Bitácora: todos los roles autenticados */}
                     <Route path="/logs" element={<LogsPage />} />
+
+                    {/* Gastos: dato financiero sensible → solo superadmin, socio y contador */}
+                    <Route
+                        path="/expenses"
+                        element={
+                            <RoleGuard allowed={['superadmin', 'socio', 'contador']} mode="redirect">
+                                <ExpensesPage />
+                            </RoleGuard>
+                        }
+                    />
 
                     {/* Staff: solo superadmin */}
                     <Route
