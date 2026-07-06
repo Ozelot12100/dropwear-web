@@ -25,7 +25,7 @@ Este documento detalla las funcionalidades pendientes para mejorar la experienci
 
 ### 2.1 Módulo de Corte de Caja (Arqueo) 💰 — ✅ Implementado
 - **Estado:** cada venta registra su **método de pago** (efectivo/transferencia/tarjeta) — se captura en el modal de venta y en el remate en lote, extendiendo la RPC `change_item_status` (ahora 9 args) + columna `inventory_items.payment_method`. La página **Corte de Caja** (`/corte`, roles financieros) muestra las **ventas del día por método**, y hace el arqueo: `fondo inicial + ventas en efectivo = efectivo esperado`, se captura el **efectivo contado** y se calcula la **diferencia** (sobrante/faltante). Los cortes se guardan en la tabla `cash_cuts` (con historial). Escritura solo `socio`/`superadmin`; `contador` lo consulta.
-- **Nota (v1):** el arqueo reconcilia el **efectivo de ventas** (no descuenta gastos en efectivo/retiros; queda como refinamiento futuro).
+- **Salidas de efectivo:** el arqueo también resta el efectivo que salió del cajón (gastos en efectivo / retiros) vía el campo "Salidas de efectivo" (columna `cash_cuts.cash_out`), así el esperado es exacto: `fondo + ventas efectivo − salidas`.
 - **Beneficio:** cuadrar el efectivo real del cajón contra el sistema, detectando faltantes/sobrantes a diario.
 
 ### 2.2 Panel de Analítica y Gráficas 📊 — ✅ Implementado (v1)

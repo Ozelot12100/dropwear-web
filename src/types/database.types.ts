@@ -34,6 +34,7 @@ export type Database = {
       }
       cash_cuts: {
         Row: {
+          cash_out: number
           counted_cash: number
           created_at: string
           created_by: string | null
@@ -46,6 +47,7 @@ export type Database = {
           sales_cash: number
         }
         Insert: {
+          cash_out?: number
           counted_cash: number
           created_at?: string
           created_by?: string | null
@@ -58,6 +60,7 @@ export type Database = {
           sales_cash?: number
         }
         Update: {
+          cash_out?: number
           counted_cash?: number
           created_at?: string
           created_by?: string | null

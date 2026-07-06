@@ -22,6 +22,7 @@ export default function CashCutPage() {
 
     const [date, setDate] = useState(todayISO());
     const [openingFloat, setOpeningFloat] = useState('');
+    const [cashOut, setCashOut] = useState('');
     const [countedCash, setCountedCash] = useState('');
     const [notes, setNotes] = useState('');
     const [err, setErr] = useState<string | null>(null);
@@ -34,9 +35,10 @@ export default function CashCutPage() {
     const { data: cuts } = useQuery({ queryKey: ['cashCuts'], queryFn: cashCutService.getCashCuts });
 
     const opening = parseFloat(openingFloat.replace(/,/g, '.')) || 0;
+    const outflow = parseFloat(cashOut.replace(/,/g, '.')) || 0;
     const counted = parseFloat(countedCash.replace(/,/g, '.'));
     const salesCash = sales?.efectivo ?? 0;
-    const expected = opening + salesCash;
+    const expected = opening + salesCash - outflow;
     const difference = (isNaN(counted) ? 0 : counted) - expected;
     const hasCount = countedCash.trim() !== '' && !isNaN(counted) && counted >= 0;
 
@@ -51,6 +53,7 @@ export default function CashCutPage() {
             cut_date: date,
             opening_float: opening,
             sales_cash: salesCash,
+            cash_out: outflow,
             expected_cash: expected,
             counted_cash: counted,
             difference,
@@ -59,7 +62,7 @@ export default function CashCutPage() {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['cashCuts'] });
             setSaved(true);
-            setOpeningFloat(''); setCountedCash(''); setNotes('');
+            setOpeningFloat(''); setCashOut(''); setCountedCash(''); setNotes('');
         },
         onError: (e: Error) => setErr(e.message),
     });
@@ -104,10 +107,14 @@ export default function CashCutPage() {
             {/* Arqueo */}
             <div className="rounded-xl border border-hairline bg-card p-5 shadow-soft">
                 <h2 className="flex items-center gap-2 font-heading text-lg font-semibold text-ink"><Scale className="h-5 w-5" />Arqueo de efectivo</h2>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
                     <div className="grid gap-1.5">
-                        <Label className={capsHead}>Fondo inicial (caja chica)</Label>
+                        <Label className={capsHead}>Fondo inicial</Label>
                         <Input type="number" inputMode="decimal" step="0.01" min="0" value={openingFloat} onChange={(e) => setOpeningFloat(e.target.value)} placeholder="0.00" className="h-11 font-mono" disabled={!canWrite} />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label className={capsHead}>Salidas de efectivo</Label>
+                        <Input type="number" inputMode="decimal" step="0.01" min="0" value={cashOut} onChange={(e) => setCashOut(e.target.value)} placeholder="0.00" className="h-11 font-mono" disabled={!canWrite} />
                     </div>
                     <div className="grid gap-1.5">
                         <Label className={capsHead}>Efectivo contado *</Label>
@@ -119,6 +126,7 @@ export default function CashCutPage() {
                 <div className="mt-4 space-y-1.5 rounded-lg border border-hairline bg-secondary/40 p-3 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">Fondo inicial</span><span className="font-mono text-ink">{money(opening)}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">+ Ventas en efectivo</span><span className="font-mono text-ink">{money(salesCash)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">− Salidas de efectivo</span><span className="font-mono text-ink">{money(outflow)}</span></div>
                     <div className="flex justify-between border-t border-hairline pt-1.5 font-semibold"><span className="text-ink">= Efectivo esperado</span><span className="font-mono text-ink">{money(expected)}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Efectivo contado</span><span className="font-mono text-ink">{hasCount ? money(counted) : '—'}</span></div>
                     <div className="flex items-center justify-between border-t border-hairline pt-1.5"><span className="font-semibold text-ink">Diferencia</span><span className={`font-mono font-semibold ${diffLabel.cls}`}>{diffLabel.text}</span></div>

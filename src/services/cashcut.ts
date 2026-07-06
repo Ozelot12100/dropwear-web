@@ -48,7 +48,7 @@ export const cashCutService = {
     async getCashCuts(): Promise<CashCutWithUser[]> {
         const { data, error } = await supabase
             .from('cash_cuts')
-            .select('id, cut_date, opening_float, sales_cash, expected_cash, counted_cash, difference, notes, created_by, created_at, user_profiles ( full_name )')
+            .select('id, cut_date, opening_float, sales_cash, cash_out, expected_cash, counted_cash, difference, notes, created_by, created_at, user_profiles ( full_name )')
             .order('cut_date', { ascending: false })
             .order('id', { ascending: false })
             .limit(30);
@@ -60,6 +60,7 @@ export const cashCutService = {
         cut_date: string;
         opening_float: number;
         sales_cash: number;
+        cash_out: number;
         expected_cash: number;
         counted_cash: number;
         difference: number;
@@ -70,6 +71,7 @@ export const cashCutService = {
             cut_date: payload.cut_date,
             opening_float: payload.opening_float,
             sales_cash: payload.sales_cash,
+            cash_out: payload.cash_out,
             expected_cash: payload.expected_cash,
             counted_cash: payload.counted_cash,
             difference: payload.difference,
