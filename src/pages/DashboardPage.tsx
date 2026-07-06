@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks';
 import { dashboardService } from '../services/dashboard';
 import { Skeleton } from '../components/ui/skeleton';
+import { BusinessAnalytics } from '../components/dashboard/BusinessAnalytics';
 import { Package, Bookmark, Tag, Banknote, Calendar, type LucideIcon } from 'lucide-react';
 
 // Roles que pueden ver información financiera (utilidad/margen).
@@ -34,6 +35,7 @@ export default function DashboardPage() {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, () => {
                 queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
                 queryClient.invalidateQueries({ queryKey: ['recentActivity'] });
+                queryClient.invalidateQueries({ queryKey: ['businessAnalytics'] });
             })
             .subscribe();
         return () => { supabase.removeChannel(channel); };
@@ -192,6 +194,9 @@ export default function DashboardPage() {
                     </div>
                 ))}
             </div>
+
+            {/* Análisis del negocio: tendencia + top productos (solo roles financieros) */}
+            {canSeeFinancial && <BusinessAnalytics />}
 
             {/* Actividad reciente */}
             <section>

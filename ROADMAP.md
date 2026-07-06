@@ -27,9 +27,11 @@ Este documento detalla las funcionalidades pendientes para mejorar la experienci
 - **Concepto:** Un sistema para aperturar caja con un fondo inicial y cerrarla al final del turno.
 - **Beneficio:** Permite cuadrar el efectivo/transferencias reales de la tienda física contra las acciones registradas en sistema, detectando sobrantes o faltantes.
 
-### 2.2 Panel de Analítica y Gráficas 📊
-- **Concepto:** Añadir gráficas visuales (ej. usando `Recharts`) en el Dashboard actual.
-- **Beneficio:** Visualizar curvas de ingresos semanales/mensuales, el top de marcas/categorías más vendidas y conocer los días con mayor flujo de clientes.
+### 2.2 Panel de Analítica y Gráficas 📊 — ✅ Implementado (v1)
+- **Estado:** sección **"Análisis del Negocio"** en el Dashboard (solo roles financieros) con dos gráficas: **tendencia de 6 meses** (barras de ingresos + utilidad neta por mes) y **top 5 productos** del mes en curso (barras horizontales por ingreso). Datos derivados de `inventory_logs` + `products.cost` + `expenses` vía `analyticsService.getBusinessAnalytics`. Se actualiza en tiempo real con las ventas (invalida `businessAnalytics` en el canal de `inventory_items`).
+- **Decisión técnica:** gráficas propias con CSS/flex (sin `Recharts` ni dependencias nuevas) para no inflar el bundle móvil, consistente con el enfoque del CSV. Con estados vacíos claros mientras no haya ventas.
+- **Beneficio:** ver la trayectoria de ingresos/utilidad y qué productos mueven el negocio, de un vistazo.
+- **Siguiente (v2, opcional):** ventas por día del mes, top por marca/categoría, comparativa mes vs. mes.
 
 ### 2.3 Exportación de Reportes (Excel / CSV) 📥 — ✅ Implementado
 - **Estado:** botón **"Exportar"** en **Inventario** y **Bitácora**. Genera un CSV (con BOM UTF-8, abre bien en Excel) de las filas **según los filtros activos**, sin dependencias externas (`src/lib/csv.ts`). La Bitácora incluye el precio de venta solo para roles financieros.
